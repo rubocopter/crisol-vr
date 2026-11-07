@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="../media/banner.jpg" alt="Crisol: Theater of Idols VR" width="100%">
+<img src="../media/crisol-theater-of-idols-vr-banner.png" alt="Crisol: Theater of Idols VR" width="100%">
 
 # CRISOL — THEATER OF IDOLS VR
 
@@ -12,6 +12,14 @@
 
 > [!IMPORTANT]
 > **Beta pública v0.1.0.** El perfil se ha probado en el juego con PS VR2, pero todavía hay desajustes de manos, transiciones de animaciones y algunos efectos gráficos. El ZIP se ha validado estructuralmente, aunque todavía no se ha comprobado su importación desde cero en otro equipo.
+
+## Vídeo de gameplay
+
+<div align="center">
+  <a href="https://youtu.be/8Q2yWP8Y-xI">
+    <img src="https://img.youtube.com/vi/8Q2yWP8Y-xI/hqdefault.jpg" alt="Ver el gameplay de Crisol VR en YouTube" width="560">
+  </a>
+</div>
 
 ## Qué incluye
 
