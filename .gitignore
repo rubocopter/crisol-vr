@@ -1,0 +1,13 @@
+# Python caches and packaging output
+__pycache__/
+*.py[cod]
+dist/
+*.zip
+*.bak
+*.log
+
+# Editor / system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

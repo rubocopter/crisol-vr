@@ -1,0 +1,2 @@
+Core_r.ScreenPercentage=0.000000
+Renderer_r.Shadow.Virtual.Enable=0

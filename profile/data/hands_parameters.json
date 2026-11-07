@@ -1,0 +1,61 @@
+{
+    "profiles": {
+        "Main": {
+            "Arms": {
+                "FOV": "",
+                "Left": {
+                    "AnimationID": "left_arms",
+                    "Location": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Name": "l_wrist_jnt",
+                    "OptimizeAnimationsRootBone": null,
+                    "Rotation": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "UseDefaultPose": true
+                },
+                "Mesh": "Pawn.PlayerArms",
+                "Offset": {
+                    "Pitch": 0.0,
+                    "Roll": 0.0,
+                    "X": 0,
+                    "Y": 0,
+                    "Yaw": 0.0,
+                    "Z": 0
+                },
+                "OptimizeAnimations": true,
+                "Right": {
+                    "AnimationID": "right_arms",
+                    "Location": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Name": "r_wrist_jnt",
+                    "OptimizeAnimationsRootBone": null,
+                    "Rotation": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "Scale": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "UseDefaultPose": true
+                }
+            }
+        }
+    }
+}
