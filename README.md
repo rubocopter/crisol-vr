@@ -19,6 +19,14 @@
 > [!IMPORTANT]
 > **Early public beta (v0.1.0).** The PS VR2 Sense profile has been developed and tried in-game, but hand alignment, scripted animations, and some graphical effects still need work. The downloadable ZIP is structurally validated. A fresh-user import has not yet been independently verified.
 
+## Gameplay preview
+
+<div align="center">
+  <a href="https://youtu.be/8Q2yWP8Y-xI">
+    <img src="https://img.youtube.com/vi/8Q2yWP8Y-xI/hqdefault.jpg" alt="Watch Crisol VR gameplay on YouTube" width="560">
+  </a>
+</div>
+
 ## Features
 
 - **6DoF weapon aiming** — The right motion controller drives the pistol's position and orientation independently of head movement.
