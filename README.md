@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="media/banner.jpg" alt="Crisol: Theater of Idols VR — UEVR profile" width="100%">
+<img src="media/crisol-theater-of-idols-vr-banner.png" alt="Crisol: Theater of Idols VR — UEVR profile" width="100%">
 
 # CRISOL — THEATER OF IDOLS VR
 
@@ -27,11 +27,6 @@
 - **Contextual-animation handling** — Temporarily switches to the game's original hands for certain knife, blood absorption, healing, traversal, and object-interaction sequences.
 - **Readable VR interface** — Health and menus stay in view while the reticle and contextual interaction prompts follow the weapon's aiming direction.
 - **Head-oriented movement** — Locomotion settings favor where you look instead of leaving movement aligned to a stale body direction.
-
-## Screenshots
-
-![Tracked pistol and game scene](media/screenshots/gameplay.jpg)
-![Interactive environment with visible hands](media/screenshots/interaction.jpg)
 
 ## Installation
 
@@ -85,12 +80,3 @@ The importable profile lives in [`profile/`](profile/), including settings, Open
 Original project code is licensed under [GPL-3.0](LICENSE). Bundled third-party UEVRLib components retain their [MIT license](UEVRLIB_LICENSE). See [Third-Party Notices](THIRD_PARTY_NOTICES.md).
 
 **Unofficial fan-made mod.** Crisol: Theater of Idols and its artwork belong to their respective rights holders. The importable ZIP contains no game executables or extracted game assets; screenshots in this repository depict gameplay. UEVR and the game are obtained separately.
-
-<div align="center">
-
-**Support development and future updates**
-
-<a href="https://ko-fi.com/onitaku"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Ko-fi support"></a>
-
-</div>
-
