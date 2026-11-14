@@ -1,0 +1,53 @@
+PS VR2 SENSE - NATIVE STEAMVR BINDING / KEEP UEVR OPENXR
+=====================================================
+
+Native layout selected on Fractal and working in headset per the user's
+2026-11-14 report; pause-camera behavior is a separate code issue. Importing
+the UEVR ZIP does NOT activate SteamVR native bindings. In SteamVR's Controller
+Bindings UI for Crisol / PS VR2 Sense, select the published community layout:
+
+  Asignación compartida de Oni psvr2
+
+No community ID or direct URL was included in the returned USB files.
+For optional local preparation, selection/readback and rollback, follow:
+
+  steamvr/README.txt
+
+The native file steamvr/crisol_sense_openxr.json exactly preserves the final
+USB personal save, including its name and all tested mapping semantics. Its
+old pending-verification description is preserved as part of that saved file;
+the status above supersedes it. SHA256:
+6519535c2cc16b55f7c0d9eb12818972958818a9a5d09bc19bc4a21e17731e1e
+Physical controller_type is playstation_vr2_sense, category is openxr, action prefix is
+/actions/defaultopenxr. The application-facing interaction_profile is Valve
+Index, accepted by UEVR, with no Oculus conversion or driver/HMD simulation.
+There is no invented Sony OpenXR profile and no OpenVR runtime switch.
+
+Cross/Circle = Xbox A/B; Square/Triangle = X/Y. L1/R1 and L2/R2 use Sony
+value sources through SteamVR's boolean threshold, not a nonexistent physical
+click. Native sticks and their real clicks supply movement/turn and L3/R3.
+Options is direct button/click -> systembutton: short release Start/pause;
+hold more than 0.5 seconds View/Back, as implemented by UEVR. Verify both.
+Create sends View/Back via a left-hand AButtonTouchRight marker and the
+shipped input helper. Right Cross touch is ignored, including controller swap.
+The PlayStation system buttons retain their SteamVR/system handling.
+
+Keep the explicit native layout selected while testing. Restoring default
+bindings would re-enable the automatic remapping that failed the user test.
+The five UEVR overrides are separate from this SteamVR binding; copying a
+Sony-named _interaction_profiles JSON into the UEVR folder cannot activate it.
+
+TEST: face buttons, Options short/hold, L1/R1, L2/R2, movement, turn, L3/R3,
+poses, haptics, and the UEVR head-near-left-controller D-pad gesture. Repeat
+after loading a save and full restart. Capture active native binding readback,
+UEVR Interaction Profile, runtime versions, physical button and Xbox result.
+Camera/gameplay and hand/UI testing are covered by the main test checklist.
+
+Optional bounded Xbox trace (the main script already integrates the helper):
+require("libs/crisol_controller_input").start_diagnostics(600, 40)
+Run once from a temporary local Lua script/console if available. It records
+changed post-helper Xbox states only, up to 600 eligible polls or 40 changes;
+it does not identify the active interaction profile. Remove the temporary
+script afterward. Hex masks: A=1000 B=2000 X=4000 Y=8000 Start=0010 View=0020
+L3=0040 R3=0080 LB=0100 RB=0200 D-pad up/down/left/right=0001/0002/0004/0008.
+Triggers are 0-255, stick axes signed. No trace runs by default.

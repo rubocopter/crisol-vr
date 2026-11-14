@@ -1,0 +1,31 @@
+CRISOL VR v1.0.0 - COMPROBACIONES CON VISOR
+===========================================
+
+Instalacion
+-----------
+1. Cierra Crisol y UEVR y conserva una copia del perfil anterior en
+   %APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping.
+2. Importa CRToiPrototype-Win64-Shipping.zip con Import Config de UEVR.
+3. Usa SteamVR como runtime OpenXR con ambos Sense conectados. Conserva el
+   layout Sense que ya has configurado y probado. Para instalarlo en otro PC,
+   consulta steamvr/README.txt y selecciona el layout de la comunidad.
+4. Arranca Crisol, selecciona OpenXR en UEVR e inyecta. La version del perfil
+   aparece en VERSION.txt. Reinicia juego y UEVR tras cambiar bindings.
+
+Cambios para comprobar en esta version
+-------------------------------------
+- PAUSA: abre el menu con Options y mueve el mando derecho con la cabeza
+  quieta. La vista debe seguir estable. Mira alrededor con el visor y reanuda.
+  El apuntado y la interaccion deben volver al mando derecho inmediatamente.
+- MIRA: apunta a una pared en reposo, dispara y compara el centro de la mira
+  con el impacto a varias distancias y orientaciones de cabeza y mando.
+  Comprueba especialmente el desfase abajo/derecha comunicado.
+- MENU/INSPECCION: conserva la vista de cabeza en el menu principal,
+  inspecciones y puzles. Antes de entrar y al salir, apunta con el mando.
+- MANOS: prueba el apoyo automatico, separacion de los mandos, recarga,
+  cambio de arma y regreso desde animaciones contextuales.
+
+La entrega anterior fue probada por el autor en Fractal con PS VR2 Sense,
+SteamVR y OpenXR. Las nuevas correcciones de pausa y mira tienen pruebas
+locales de regresion. Su comprobacion final con el visor sigue pendiente.
+Conserva los ajustes de rendimiento de la prueba que funciono bien.

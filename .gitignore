@@ -1,5 +1,6 @@
 # Python caches and packaging output
 __pycache__/
+.pytest_cache/
 *.py[cod]
 dist/
 *.zip

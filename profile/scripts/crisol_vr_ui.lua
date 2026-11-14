@@ -2,7 +2,6 @@
 -- get independent positioning. Native game visibility and interaction logic remain in charge.
 local utils = require('libs/uevr_utils')
 local controllers = require('libs/controllers')
-local mathlib = utils.find_default_instance('Class /Script/Engine.KismetMathLibrary')
 local layout = utils.find_default_instance('Class /Script/UMG.WidgetLayoutLibrary')
 local crosshairs, components, active_icons, changed = {}, {}, {}, {}
 local last_error, reported_projection = nil, false
@@ -18,17 +17,19 @@ local viewport_h, dpi, ui_size, ui_distance, offset_x, offset_y = 1440, 1, 2.285
 local debug_time, debug_count = 0, 0
 local viewport_w = 2560
 local native_screen = utils.vector2D(0, 0)
+local native_origin, native_rotation = utils.vector(0, 0, 0), utils.rotator(0, 0, 0)
+local scan_pawn = nil
 
 local function number_param(name, default)
     return tonumber(uevr.params.vr:get_mod_value(name)) or default
 end
-local function copy3(v) return {X=v.X, Y=v.Y, Z=v.Z} end
 local function valid(object) return utils.getValid(object) ~= nil end
 local function dot(a, b) return a.X*b.X + a.Y*b.Y + a.Z*b.Z end
 local function sub(a, b) return {X=a.X-b.X, Y=a.Y-b.Y, Z=a.Z-b.Z} end
 
--- Intersection of the right aim ray and the headlocked UEVR UI plane.
+-- Intersection of a world ray and the headlocked UEVR UI plane.
 -- World coordinates are cm; the compositor settings are metres.
+-- OpenXR generate_slate_quad uses UI_Size as height (width = aspect*height).
 local function project_ray(origin, direction, head, forward, right, up, distance, size, height, scale, xoff, yoff)
     local delta = sub(origin, head)
     local denominator = dot(direction, forward)
@@ -41,24 +42,63 @@ local function project_ray(origin, direction, head, forward, right, up, distance
         -(dot(intersection, up)-yoff*100)*pixels_per_cm
 end
 
-local function restore()
-    for _, widget in ipairs(crosshairs) do
-        pcall(function() if valid(widget) then widget:SetRenderTranslation(utils.vector2D(0, 0)) end end)
+local function original_translation(widget)
+    if not changed[widget] then
+        local transform = widget.RenderTransform
+        local translation = transform and transform.Translation
+        changed[widget] = {X=translation and translation.X or 0, Y=translation and translation.Y or 0}
     end
-    for widget in pairs(changed) do
-        pcall(function()
-            if valid(widget) then widget:SetRenderTranslation(utils.vector2D(0, 0)) end
-        end)
-    end
-    crosshairs, components, active_icons, changed = {}, {}, {}, {}
+    return changed[widget]
 end
 
-utils.setInterval(1500, function()
+local function translate(widget, x, y)
+    local original = original_translation(widget)
+    widget:SetRenderTranslation(utils.vector2D(original.X+x, original.Y+y))
+end
+
+local function restore_widget(widget)
+    local original = changed[widget]
+    if original then
+        pcall(function()
+            if valid(widget) then widget:SetRenderTranslation(utils.vector2D(original.X, original.Y)) end
+        end)
+        changed[widget] = nil
+    end
+end
+
+local function restore()
+    for widget in pairs(changed) do restore_widget(widget) end
+    crosshairs, components, active_icons, changed = {}, {}, {}, {}
+    scan_pawn = nil
+end
+
+local function refresh_icons()
+    local next_icons, active = {}, {}
+    for _, entry in ipairs(components) do
+        pcall(function()
+            if valid(entry.component) and valid(entry.widget) and entry.widget:IsVisible()
+                and entry.component:IsVisible() then
+                next_icons[#next_icons+1] = entry
+                active[entry.widget] = true
+            end
+        end)
+    end
+    for _, entry in ipairs(active_icons) do
+        if not active[entry.widget] then restore_widget(entry.widget) end
+    end
+    active_icons = next_icons
+end
+
+utils.setInterval(750, function()
     local ok, err = pcall(function()
         local pawn = uevr.api:get_local_pawn(0)
-        if pawn == nil or utils.getValid(pawn.PlayerArms) == nil then return end
-        controllers.createController(1)
-        controllers.createController(2)
+        if pawn ~= scan_pawn then restore(); scan_pawn = pawn end
+        if not valid(pawn) or not valid(pawn.PlayerArms) then
+            restore()
+            return
+        end
+        if not controllers.controllerExists(1) then controllers.createController(1) end
+        if not controllers.controllerExists(2) then controllers.createController(2) end
         local size = layout:GetViewportSize(utils.get_world())
         viewport_h = math.max(1, size.Y)
         viewport_w = math.max(1, size.X)
@@ -66,28 +106,39 @@ utils.setInterval(1500, function()
         ui_size = math.max(0.01, number_param('UI_Size', 2.285))
         ui_distance = math.max(0.01, number_param('UI_Distance', 3.045))
         offset_x, offset_y = number_param('UI_X_Offset', 0), number_param('UI_Y_Offset', 0)
-        local found = {}
-        for _, widget in ipairs(utils.find_all_instances('Class /Script/UMG.UserWidget', false) or {}) do
+        -- UObjectHook indexes live objects under their class and every parent
+        -- class. This reads the widget index, not the entire UObject array.
+        -- Polling it promptly also discovers newly spawned/replaced HUD widgets.
+        local found, tracked = {}, {}
+        for _, widget in ipairs(utils.find_all_of('Class /Script/UMG.UserWidget', false) or {}) do
             pcall(function()
+                if not valid(widget) then return end
                 local name = widget:get_full_name()
                 local cls = name:match('^(%S+)') or ''
                 if cls:find('Crosshair', 1, true) and name:find('/Engine/Transient', 1, true)
                     and widget:IsInViewport() and widget:GetOwningPlayerPawn() == pawn then
                     found[#found+1] = widget
+                    tracked[widget] = true
                 end
             end)
         end
         crosshairs = found
         components = {}
-        for _, component in ipairs(utils.find_all_instances('Class /Script/UMG.WidgetComponent', false) or {}) do
+        for _, component in ipairs(utils.find_all_of('Class /Script/UMG.WidgetComponent', false) or {}) do
             pcall(function()
+                if not valid(component) then return end
                 local widget = component:GetUserWidgetObject()
-                if widget ~= nil and widget:get_full_name():match('^CRInteractIconSlot_C ')
+                if valid(widget) and widget:get_full_name():match('^CRInteractIconSlot_C ')
                     and widget:GetOwningPlayerPawn() == pawn then
                     components[#components+1] = {component=component, widget=widget}
+                    tracked[widget] = true
                 end
             end)
         end
+        for widget in pairs(changed) do
+            if not tracked[widget] then restore_widget(widget) end
+        end
+        refresh_icons()
     end)
     if not ok and tostring(err) ~= last_error then
         last_error = tostring(err)
@@ -95,51 +146,65 @@ utils.setInterval(1500, function()
     end
 end)
 
-utils.setInterval(150, function()
-    local next_icons = {}
-    for _, entry in ipairs(components) do
-        pcall(function()
-            if valid(entry.component) and valid(entry.widget) and entry.widget:IsVisible()
-                and entry.component:IsVisible() then next_icons[#next_icons+1] = entry end
-        end)
-    end
-    active_icons = next_icons
-end)
+utils.setInterval(150, refresh_icons)
 
 uevr.sdk.callbacks.on_post_engine_tick(function()
     local ok, err = pcall(function()
+        if scan_pawn ~= nil and uevr.api:get_local_pawn(0) ~= scan_pawn then
+            restore()
+            return
+        end
+        if #crosshairs == 0 and #active_icons == 0 then return end
         if not controllers.controllerExists(2) or not controllers.controllerExists(1) then return end
         local head = controllers.getControllerLocation(2)
         local forward = controllers.getControllerDirection(2)
         local right = controllers.getControllerRightVector(2)
         local up = controllers.getControllerUpVector(2)
-        local origin = controllers.getControllerLocation(1)
-        local direction = controllers.getControllerDirection(1)
-        if not head or not forward or not right or not up or not origin or not direction then return end
-        local target = controllers.getControllerTargetLocation(1, 0, {uevr.api:get_local_pawn(0)}, false, 10)
-        local aim_origin, aim_direction = origin, direction
-        if target then
-            local d = sub(target, head)
-            local length = math.sqrt(dot(d, d))
-            if length > 1 then aim_origin, aim_direction = head, {X=d.X/length, Y=d.Y/length, Z=d.Z/length} end
-        end
-        local x, y = project_ray(aim_origin, aim_direction, head, forward, right, up, ui_distance, ui_size, viewport_h, dpi, offset_x, offset_y)
-        if os.clock() > debug_time and debug_count < 12 then
-            debug_time, debug_count = os.clock() + 1, debug_count + 1
-            uevr.params.functions.log_info(string.format('[Crisol UI position] x=%s y=%s head=%.1f,%.1f,%.1f hforward=%.3f,%.3f,%.3f right=%.1f,%.1f,%.1f rforward=%.3f,%.3f,%.3f h=%s dpi=%s', tostring(x), tostring(y), head.X, head.Y, head.Z, forward.X, forward.Y, forward.Z, origin.X, origin.Y, origin.Z, direction.X, direction.Y, direction.Z, tostring(viewport_h), tostring(dpi)))
-        end
+        if not head or not forward or not right or not up then return end
+        local visible_crosshairs = {}
         for _, widget in ipairs(crosshairs) do
-            local good, message = pcall(function()
-                if valid(widget) then
-                    -- Hide an offscreen/behind-head aim by placing it outside the quad.
-                    widget:SetRenderTranslation(utils.vector2D(x or viewport_h*10, y or viewport_h*10))
-                end
-            end)
-            if not good then report_error(message) end
+            if valid(widget) and widget:IsVisible() then
+                visible_crosshairs[#visible_crosshairs+1] = widget
+            end
         end
-        if x and #crosshairs > 0 and not reported_projection then
-            reported_projection = true
-            uevr.params.functions.log_info('[Crisol VR UI] Right-controller crosshair projection active')
+        if #visible_crosshairs > 0 then
+            -- Crisol shoots along its native view, driven by UEVR's effective
+            -- ControlRotation. Raw hand tracking has a different origin and
+            -- bypasses AimInterp. Read the game's view instead of recreating it;
+            -- its origin also stays distinct from the offset stereo/HMD camera.
+            local player_controller = utils.get_player_controller()
+            local origin, direction
+            if valid(player_controller) then
+                player_controller:GetPlayerViewPoint(native_origin, native_rotation)
+                origin, direction = native_origin, utils.getForwardVector(native_rotation)
+            end
+            if origin and direction then
+                local target = utils.getTargetLocation(origin, direction, 0, {uevr.api:get_local_pawn(0)}, false, 10)
+                local aim_origin, aim_direction = origin, direction
+                if target then
+                    local d = sub(target, head)
+                    local length = math.sqrt(dot(d, d))
+                    if length > 1 then aim_origin, aim_direction = head, {X=d.X/length, Y=d.Y/length, Z=d.Z/length} end
+                end
+                local x, y = project_ray(aim_origin, aim_direction, head, forward, right, up, ui_distance, ui_size, viewport_h, dpi, offset_x, offset_y)
+                if os.clock() > debug_time and debug_count < 12 then
+                    debug_time, debug_count = os.clock() + 1, debug_count + 1
+                    uevr.params.functions.log_info(string.format('[Crisol UI position] x=%s y=%s head=%.1f,%.1f,%.1f hforward=%.3f,%.3f,%.3f native=%.1f,%.1f,%.1f nforward=%.3f,%.3f,%.3f h=%s dpi=%s', tostring(x), tostring(y), head.X, head.Y, head.Z, forward.X, forward.Y, forward.Z, origin.X, origin.Y, origin.Z, direction.X, direction.Y, direction.Z, tostring(viewport_h), tostring(dpi)))
+                end
+                for _, widget in ipairs(visible_crosshairs) do
+                    local good, message = pcall(function()
+                        if valid(widget) then
+                            -- Hide an offscreen/behind-head aim by placing it outside the quad.
+                            translate(widget, x or viewport_h*10, y or viewport_h*10)
+                        end
+                    end)
+                    if not good then report_error(message) end
+                end
+                if x and #crosshairs > 0 and not reported_projection then
+                    reported_projection = true
+                    uevr.params.functions.log_info('[Crisol VR UI] Native-view crosshair projection active')
+                end
+            end
         end
         for _, entry in ipairs(active_icons) do
             local good, message = pcall(function()
@@ -153,13 +218,13 @@ uevr.sdk.callbacks.on_post_engine_tick(function()
                 local ix, iy = project_ray(head, dir, head, forward, right, up, ui_distance, ui_size, viewport_h, dpi, offset_x, offset_y)
                 local projected = layout:ProjectWorldLocationToWidgetPosition(utils.get_player_controller(), location, native_screen, false)
                 if projected and ix then
-                    widget:SetRenderTranslation(utils.vector2D(viewport_w/(2*dpi)+ix-native_screen.X, viewport_h/(2*dpi)+iy-native_screen.Y))
-                    if not changed[widget] then
+                    local first = changed[widget] == nil
+                    translate(widget, viewport_w/(2*dpi)+ix-native_screen.X, viewport_h/(2*dpi)+iy-native_screen.Y)
+                    if first then
                         uevr.params.functions.log_info('[Crisol VR UI] Reprojected interaction icon: ' .. component:get_full_name())
                     end
-                    changed[widget] = true
                 elseif changed[widget] then
-                    widget:SetRenderTranslation(utils.vector2D(0, 0))
+                    restore_widget(widget)
                 end
             end)
             if not good then report_error(message) end

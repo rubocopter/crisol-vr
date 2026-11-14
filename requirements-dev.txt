@@ -1,0 +1,3 @@
+# Only for local regression tests. The importable UEVR ZIP needs neither.
+pytest
+lupa

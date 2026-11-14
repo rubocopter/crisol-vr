@@ -30,6 +30,34 @@
       "action": "haptic"
     },
     {
+      "path": "/user/hand/left/input/x/click",
+      "action": "bbuttonright"
+    },
+    {
+      "path": "/user/hand/left/input/y/click",
+      "action": "bbuttonleft"
+    },
+    {
+      "path": "/user/hand/left/input/x/touch",
+      "action": "bbuttontouchright"
+    },
+    {
+      "path": "/user/hand/left/input/y/touch",
+      "action": "bbuttontouchleft"
+    },
+    {
+      "path": "/user/hand/left/input/menu/click",
+      "action": "systembutton"
+    },
+    {
+      "path": "/user/hand/left/input/trigger/touch",
+      "action": "thumbresttouchleft"
+    },
+    {
+      "path": "/user/hand/left/input/thumbstick/touch",
+      "action": "thumbresttouchright"
+    },
+    {
       "path": "/user/hand/right/input/aim/pose",
       "action": "pose"
     },
@@ -66,40 +94,12 @@
       "action": "abuttonleft"
     },
     {
-      "path": "/user/hand/left/input/x/click",
-      "action": "bbuttonright"
-    },
-    {
-      "path": "/user/hand/left/input/y/click",
-      "action": "bbuttonleft"
-    },
-    {
       "path": "/user/hand/right/input/a/touch",
       "action": "abuttontouchright"
     },
     {
       "path": "/user/hand/right/input/b/touch",
       "action": "abuttontouchleft"
-    },
-    {
-      "path": "/user/hand/left/input/x/touch",
-      "action": "bbuttontouchright"
-    },
-    {
-      "path": "/user/hand/left/input/y/touch",
-      "action": "bbuttontouchleft"
-    },
-    {
-      "path": "/user/hand/left/input/menu/click",
-      "action": "systembutton"
-    },
-    {
-      "path": "/user/hand/left/input/trigger/touch",
-      "action": "thumbresttouchleft"
-    },
-    {
-      "path": "/user/hand/left/input/thumbstick/touch",
-      "action": "thumbresttouchright"
     }
   ]
 }

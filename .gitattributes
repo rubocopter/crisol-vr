@@ -5,3 +5,7 @@
 *.md text eol=lf
 *.py text eol=lf
 *.jpg binary
+LICENSE text eol=lf
+UEVRLIB_LICENSE text eol=lf
+# Preserve the tested SteamVR Save Personal export, including its CRLF bytes.
+profile/steamvr/crisol_sense_openxr.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

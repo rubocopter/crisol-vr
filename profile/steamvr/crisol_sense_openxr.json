@@ -1,0 +1,292 @@
+{
+   "action_manifest_version" : 0,
+   "alias_info" : {},
+   "app_key" : "steam.app.1790930",
+   "bindings" : {
+      "/actions/defaultopenxr" : {
+         "chords" : [],
+         "haptics" : [
+            {
+               "output" : "/actions/defaultopenxr/out/haptic",
+               "path" : "/user/hand/left/output/haptic"
+            },
+            {
+               "output" : "/actions/defaultopenxr/out/haptic",
+               "path" : "/user/hand/right/output/haptic"
+            }
+         ],
+         "poses" : [
+            {
+               "output" : "/actions/defaultopenxr/in/pose",
+               "path" : "/user/hand/left/pose/openxr_aim"
+            },
+            {
+               "output" : "/actions/defaultopenxr/in/grippose",
+               "path" : "/user/hand/left/pose/handgrip"
+            },
+            {
+               "output" : "/actions/defaultopenxr/in/pose",
+               "path" : "/user/hand/right/pose/openxr_aim"
+            },
+            {
+               "output" : "/actions/defaultopenxr/in/grippose",
+               "path" : "/user/hand/right/pose/handgrip"
+            }
+         ],
+         "skeleton" : [],
+         "sources" : [
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/trigger"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/l2"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/grip"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/l1"
+            },
+            {
+               "inputs" : {
+                  "position" : {
+                     "output" : "/actions/defaultopenxr/in/joystick"
+                  }
+               },
+               "mode" : "joystick",
+               "parameters" : {},
+               "path" : "/user/hand/left/input/left_stick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/joystickclick"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/left_stick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/trigger"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/r2"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/grip"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/r1"
+            },
+            {
+               "inputs" : {
+                  "position" : {
+                     "output" : "/actions/defaultopenxr/in/joystick"
+                  }
+               },
+               "mode" : "joystick",
+               "parameters" : {},
+               "path" : "/user/hand/right/input/right_stick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/joystickclick"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/right_stick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/abuttonright"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/cross"
+            },
+            {
+               "inputs" : {
+                  "touch" : {
+                     "output" : "/actions/defaultopenxr/in/abuttontouchright"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/cross"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/abuttonleft"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/circle"
+            },
+            {
+               "inputs" : {
+                  "touch" : {
+                     "output" : "/actions/defaultopenxr/in/abuttontouchleft"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/circle"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/bbuttonright"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/square"
+            },
+            {
+               "inputs" : {
+                  "touch" : {
+                     "output" : "/actions/defaultopenxr/in/bbuttontouchright"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/square"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/bbuttonleft"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/triangle"
+            },
+            {
+               "inputs" : {
+                  "touch" : {
+                     "output" : "/actions/defaultopenxr/in/bbuttontouchleft"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/triangle"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/systembutton"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/right/input/options"
+            },
+            {
+               "inputs" : {
+                  "touch" : {
+                     "output" : "/actions/defaultopenxr/in/thumbresttouchleft"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/l2"
+            },
+            {
+               "inputs" : {
+                  "touch" : {
+                     "output" : "/actions/defaultopenxr/in/thumbresttouchright"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/left_stick"
+            },
+            {
+               "inputs" : {
+                  "click" : {
+                     "output" : "/actions/defaultopenxr/in/abuttontouchright"
+                  }
+               },
+               "mode" : "button",
+               "parameters" : {
+                  "force_input" : "click",
+                  "haptic_amplitude" : 0
+               },
+               "path" : "/user/hand/left/input/create"
+            }
+         ]
+      }
+   },
+   "category" : "openxr",
+   "controller_type" : "playstation_vr2_sense",
+   "description" : "Explicit Sony physical inputs; Options is a direct click. Offline authored; headset verification pending.",
+   "interaction_profile" : "/interaction_profiles/valve/index_controller",
+   "name" : "Asignación compartida de Oni psvr2",
+   "options" : {},
+   "simulated_actions" : []
+}

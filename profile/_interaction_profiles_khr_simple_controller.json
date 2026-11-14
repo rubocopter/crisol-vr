@@ -1,0 +1,37 @@
+{
+  "vector2_associations": [],
+  "bindings": [
+    {
+      "path": "/user/hand/left/input/aim/pose",
+      "action": "pose"
+    },
+    {
+      "path": "/user/hand/left/input/grip/pose",
+      "action": "grippose"
+    },
+    {
+      "path": "/user/hand/left/input/select/click",
+      "action": "trigger"
+    },
+    {
+      "path": "/user/hand/left/input/menu/click",
+      "action": "systembutton"
+    },
+    {
+      "path": "/user/hand/right/input/aim/pose",
+      "action": "pose"
+    },
+    {
+      "path": "/user/hand/right/input/grip/pose",
+      "action": "grippose"
+    },
+    {
+      "path": "/user/hand/right/input/select/click",
+      "action": "trigger"
+    },
+    {
+      "path": "/user/hand/right/input/menu/click",
+      "action": "systembutton"
+    }
+  ]
+}
