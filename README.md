@@ -4,13 +4,13 @@
 
 # CRISOL — THEATER OF IDOLS VR
 
-**v1.0.0 · Unofficial UEVR profile · Tracked weapons and hands · OpenXR controls**
+**v1.0.1 · Unofficial UEVR profile · Tracked weapons and hands · OpenXR controls**
 
 [![Release](https://img.shields.io/github/v/release/rubocopter/crisol-vr?label=Download&color=cc6f60)](https://github.com/rubocopter/crisol-vr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/Code-GPL--3.0-blue)](LICENSE)
 [![UEVR](https://img.shields.io/badge/Powered%20by-UEVR-282828)](https://github.com/praydog/UEVR)
 
-**[Download v1.0.0](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.0)** · **[Leer en español](docs/README.es.md)**
+**[Download v1.0.1](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1)** · **[Leer en español](docs/README.es.md)**
 
 <a href="https://ko-fi.com/onitaku"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support development on Ko-fi"></a>
 
@@ -18,7 +18,7 @@
 
 Play **Crisol: Theater of Idols** in VR with motion-controlled weapon aiming, the game's own hands, and a headset-following interface. The author tested **PS VR2 Sense with SteamVR and UEVR OpenXR** successfully, with acceptable performance, and published the working Sense layout in SteamVR community bindings.
 
-See the [v1.0.0 release notes](docs/RELEASE_NOTES_v1.0.0.md) for changes and downloads.
+See the [v1.0.1 release notes](docs/RELEASE_NOTES_v1.0.1.md) for changes and downloads.
 
 ## Gameplay preview
 
@@ -41,7 +41,7 @@ See the [v1.0.0 release notes](docs/RELEASE_NOTES_v1.0.0.md) for changes and dow
 
 You need a PC copy of **Crisol: Theater of Idols**, [UEVR by praydog](https://github.com/praydog/UEVR/releases), and an OpenXR-compatible PC VR setup with motion controllers. **PS VR2 Sense with SteamVR** is the tested setup.
 
-1. Download **`CRToiPrototype-Win64-Shipping.zip`** from the [v1.0.0 release assets](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.0). Choose the profile ZIP under **Assets**.
+1. Download **`CRToiPrototype-Win64-Shipping.zip`** from the [v1.0.1 release assets](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1). Choose the profile ZIP under **Assets**.
 2. In UEVR, choose **Import Config** and select the ZIP **without extracting it**. Back up any existing custom profile first.
 3. Start your headset's OpenXR runtime (**SteamVR** for PS VR2), then launch Crisol. Windowed or borderless mode makes switching to UEVR easier.
 4. Select **`CRToiPrototype-Win64-Shipping.exe`** in UEVR, choose **OpenXR**, and click **Inject**.
@@ -50,7 +50,7 @@ You need a PC copy of **Crisol: Theater of Idols**, [UEVR by praydog](https://gi
 
 **Importing the UEVR ZIP does not select a SteamVR controller layout.** Keep UEVR on **OpenXR** when using the native Sense layout; no Oculus conversion is needed. If the community layout is unavailable, use the [shipped native-binding guide](profile/steamvr/README.txt). The release also supplies the native Sense JSON, `Install-SenseBindings.ps1`, `Sense-OpenXR-README.txt`, and `SHA256SUMS.txt` for local setup and download verification.
 
-When upgrading from an older profile, close Crisol and UEVR, back up and rename `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, then import v1.0.0. This avoids retaining old scripts. Restart the game and UEVR after changing bindings; restart SteamVR too if you changed its controller layout. A Lua reload alone does not recreate OpenXR bindings.
+When upgrading from an older profile, close Crisol and UEVR, back up and rename `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, then import v1.0.1. This avoids retaining old scripts. Restart the game and UEVR after changing bindings; restart SteamVR too if you changed its controller layout. A Lua reload alone does not recreate OpenXR bindings.
 
 ### PS VR2 Sense controls
 

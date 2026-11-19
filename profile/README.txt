@@ -1,4 +1,4 @@
-CRISOL VR - CONTROLLER COMPATIBILITY TEST 1.0.1-rc.1
+CRISOL VR - CONTROLLER COMPATIBILITY UPDATE 1.0.1
 ==================================================
 
 Import CRToiPrototype-Win64-Shipping.zip with UEVR Import Config.
@@ -19,7 +19,7 @@ Simple controllers provide only a limited subset of the game's controls.
 PS VR2 Sense: keep your tested native SteamVR community layout selected.
 The separate Sense installer/layout is for Sony controllers.
 
-This candidate corrects the Touch thumbrest modifier paths. Previously,
+This release corrects the Touch thumbrest modifier paths. Previously,
 resting your left thumb on the movement stick could activate UEVR's opposite
 thumbrest D-pad modifier. With right-touch D-pad mode, that consumes walking.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — controller compatibility, 2026-11-19
+## [v1.0.1] - 2026-11-19
 
 - Correct the Oculus Touch thumbrest modifiers. Touching the left movement stick previously activated the right-thumbrest action and could consume locomotion with UEVR's right-touch D-pad mode.
 - Validate native movement axes and the physical Touch thumbrests during packaging, and exercise shipped controller bindings through the input helper with physical button/contact states.

@@ -4,15 +4,15 @@
 
 # CRISOL — THEATER OF IDOLS VR
 
-**v1.0.0 · Perfil UEVR no oficial · Armas y manos con seguimiento 6DoF · Controles OpenXR**
+**v1.0.1 · Perfil UEVR no oficial · Armas y manos con seguimiento 6DoF · Controles OpenXR**
 
-**[Descargar v1.0.0](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.0)** · **[English](../README.md)** · **[Apoyar en Ko-fi](https://ko-fi.com/onitaku)**
+**[Descargar v1.0.1](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1)** · **[English](../README.md)** · **[Apoyar en Ko-fi](https://ko-fi.com/onitaku)**
 
 </div>
 
 Juega a **Crisol: Theater of Idols** en VR con apuntado mediante mandos de movimiento, las manos originales del juego y una interfaz que sigue al visor. El autor ha probado con éxito **PS VR2 Sense con SteamVR y UEVR OpenXR**, con rendimiento aceptable, y ha publicado la asignación Sense utilizada en los bindings de la comunidad de SteamVR.
 
-Consulta las [notas de v1.0.0](RELEASE_NOTES_v1.0.0.md) en inglés para ver los cambios y las descargas.
+Consulta las [notas de v1.0.1](RELEASE_NOTES_v1.0.1.md) en inglés para ver los cambios y las descargas.
 
 ## Vídeo de gameplay
 
@@ -40,7 +40,7 @@ Consulta las [notas de v1.0.0](RELEASE_NOTES_v1.0.0.md) en inglés para ver los 
 
 Necesitas el juego para PC, [UEVR de praydog](https://github.com/praydog/UEVR/releases) y un equipo PC VR compatible con OpenXR y mandos de movimiento. La configuración probada es **PS VR2 Sense con SteamVR**.
 
-1. Descarga **`CRToiPrototype-Win64-Shipping.zip`** desde **Assets** en la [release v1.0.0](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.0).
+1. Descarga **`CRToiPrototype-Win64-Shipping.zip`** desde **Assets** en la [release v1.0.1](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1).
 2. Abre UEVR, pulsa **Import Config** e importa el ZIP **sin descomprimirlo**. Guarda antes una copia de cualquier perfil personalizado que tengas.
 3. Inicia el runtime OpenXR de tu visor (**SteamVR** para PS VR2) y después Crisol. El modo ventana o sin bordes facilita alternar a UEVR.
 4. Selecciona **`CRToiPrototype-Win64-Shipping.exe`**, elige **OpenXR** y pulsa **Inject**.
@@ -49,7 +49,7 @@ Necesitas el juego para PC, [UEVR de praydog](https://github.com/praydog/UEVR/re
 
 **Importar el ZIP UEVR no selecciona una asignación de SteamVR.** Conserva **OpenXR** en UEVR con el layout Sense nativo; no necesitas conversión Oculus. Si no encuentras la asignación de la comunidad, sigue la [guía nativa incluida](../profile/steamvr/README.txt). La release también ofrece el JSON Sense, `Install-SenseBindings.ps1`, `Sense-OpenXR-README.txt` y `SHA256SUMS.txt` para la configuración local y la comprobación de descargas.
 
-Para actualizar desde un perfil anterior, cierra Crisol y UEVR, guarda una copia y renombra `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, e importa v1.0.0. Así evitas conservar scripts antiguos. Reinicia juego y UEVR tras modificar bindings; reinicia SteamVR también si cambiaste su layout. Recargar Lua no recrea las acciones OpenXR.
+Para actualizar desde un perfil anterior, cierra Crisol y UEVR, guarda una copia y renombra `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, e importa v1.0.1. Así evitas conservar scripts antiguos. Reinicia juego y UEVR tras modificar bindings; reinicia SteamVR también si cambiaste su layout. Recargar Lua no recrea las acciones OpenXR.
 
 ### Controles PS VR2 Sense
 

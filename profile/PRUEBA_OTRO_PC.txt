@@ -1,4 +1,4 @@
-CRISOL VR 1.0.1-rc.1 - PRUEBA DE COMPATIBILIDAD
+CRISOL VR 1.0.1 - PRUEBA DE COMPATIBILIDAD
 ===========================================
 
 Instalacion

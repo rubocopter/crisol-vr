@@ -30,10 +30,10 @@ gesture. To disable D-pad conversion for a diagnostic test, disable shifting
 and choose a non-gesture method. Other D-pad methods deliberately consume the
 selected stick while their modifier is active.
 
-The 1.0.1-rc.1 candidate corrects the Touch modifier paths to the left and right
+Version 1.0.1 corrects the Touch modifier paths to the left and right
 physical thumbrests. In 1.0.0, left-stick contact was assigned to the right
 thumbrest modifier. That combination can suppress walking if right-touch
-D-pad mode is selected. The candidate preserves the tested native Sense file.
+D-pad mode is selected. The release preserves the tested native Sense file.
 
 ## Coverage
 
