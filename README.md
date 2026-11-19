@@ -83,6 +83,10 @@ These mappings have **not been tested on their respective hardware**. UEVR uses 
 
 The release ships **five core UEVR OpenXR overrides** plus the separate native Sense SteamVR layout. The sixteen other controller JSON templates in the source tree are inactive and excluded from the release ZIP; they do not establish compatibility. The native Sense layout uses Sony physical inputs with a UEVR-supported application profile. See the [binding guide](profile/steamvr/README.txt) for details and diagnostics.
 
+Quest 1/2/3/3S and Quest Pro use the **Oculus Touch compatibility profile** when exposed by their OpenXR runtime. With Quest Link/Air Link or Virtual Desktop's VDXR, select **OpenXR** in UEVR and enable motion-controller streaming. With Steam Link or Virtual Desktop through SteamVR, use SteamVR as the OpenXR runtime. When the runtime exposes Oculus Touch, UEVR loads the supplied Touch override automatically. The separate Sense community layout and installer apply to PS VR2 Sense.
+
+PICO, Vive Cosmos/Focus and other controller families can use an available runtime mapping to one of the supported profiles above. The effective runtime profile determines their controls. Headsets used with Index controllers use the Index mapping. See [controller compatibility](docs/CONTROLLERS.md) for the supported routes and current test coverage.
+
 ## Important profile settings
 
 These values are already included. The scripts switch aiming mode between head view in menus/inspection and right-controller aiming during gameplay.

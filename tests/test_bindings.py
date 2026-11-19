@@ -89,6 +89,27 @@ def test_index_has_pause_without_reserved_system_button():
     assert not any("/system/" in b["path"] for b in data["bindings"])
 
 
+def test_rejects_touch_thumbrest_modifier_on_movement_stick(profile):
+    def move_modifier(data):
+        for binding in data["bindings"]:
+            if binding["action"] == "thumbresttouchright":
+                binding["path"] = "/user/hand/left/input/thumbstick/touch"
+    edit(profile, "oculus_touch", move_modifier)
+    with pytest.raises(RuntimeError):
+        release.validate_bindings()
+
+
+@pytest.mark.parametrize("name", ["valve_index", "microsoft_motion"])
+def test_rejects_trackpad_replacing_a_real_movement_thumbstick(profile, name):
+    def move_axis(data):
+        for binding in data["bindings"]:
+            if binding["action"] == "joystick" and "/left/" in binding["path"]:
+                binding["path"] = "/user/hand/left/input/trackpad"
+    edit(profile, name, move_axis)
+    with pytest.raises(RuntimeError):
+        release.validate_bindings()
+
+
 def test_sense_physical_pairs_match_xbox_actions():
     data = json.loads((ROOT / "profile/_interaction_profiles_oculus_touch_controller.json").read_text())
     actual = {b["path"]: b["action"] for b in data["bindings"]}

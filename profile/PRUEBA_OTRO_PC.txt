@@ -1,4 +1,4 @@
-CRISOL VR v1.0.0 - COMPROBACIONES CON VISOR
+CRISOL VR 1.0.1-rc.1 - PRUEBA DE COMPATIBILIDAD
 ===========================================
 
 Instalacion
@@ -29,3 +29,19 @@ La entrega anterior fue probada por el autor en Fractal con PS VR2 Sense,
 SteamVR y OpenXR. Las nuevas correcciones de pausa y mira tienen pruebas
 locales de regresion. Su comprobacion final con el visor sigue pendiente.
 Conserva los ajustes de rendimiento de la prueba que funciono bien.
+
+Compatibilidad de mandos (19/11/2026)
+------------------------------------
+- Quest/Touch: prueba caminar y girar con los sticks mientras descansas los
+  dedos en gatillos, botones y sticks. El contacto normal no debe activar un
+  modificador de cruceta correspondiente a otra superficie fisica.
+- Index/WMR: los sticks reales deben seguir funcionando al usar el trackpad.
+- Vive: un clic de sector actua como boton; al soltar, vuelve el movimiento.
+- Sense: conserva tu layout nativo ya probado y comprueba Options y Create.
+- Mantener el mando izquierdo junto al visor puede activar la cruceta por
+  gesto, que utiliza los ejes de movimiento. Para aislar esa funcion durante
+  un diagnostico, desactiva DPad Shifting y elige un metodo sin gesto (0).
+
+El fallo concreto comunicado en Quest 3 no esta reproducido con un visor.
+El paquete corrige una asignacion Touch erronea y amplia las comprobaciones
+locales de compatibilidad. La conexion y el runtime de ese usuario se desconocen.

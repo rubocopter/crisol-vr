@@ -297,6 +297,10 @@ def test_share_preview_does_not_invoke_mutating_cmdlets(option):
     # Shadow all mutators with failures: preview must never call any of them.
     script = ROOT / "tools/Setup-BuildShare.ps1"
     command = (
+        "$env:COMPUTERNAME = 'CORSARIO'; "
+        # Preview must also work before the dedicated root exists. Do not
+        # inspect the developer's real Builds directory in a unit test.
+        "function Test-Path { return $false }; "
         "function New-SmbShare { throw 'MUTATION' }; "
         "function New-NetFirewallRule { throw 'MUTATION' }; "
         "function Set-Acl { throw 'MUTATION' }; "
@@ -321,7 +325,23 @@ def test_share_preflight_rejects_nested_junction(tmp_path):
     if result.returncode:
         pytest.skip('junction creation unavailable')
     try:
-        command = f". '{ROOT / 'tools/Setup-BuildShare.ps1'}' -DryRun; try {{ Assert-BuildTree '{tree}'; exit 0 }} catch {{ Write-Output $_; exit 3 }}"
+        script_literal = str(ROOT / 'tools/Setup-BuildShare.ps1').replace("'", "''")
+        tree_literal = str(tree).replace("'", "''")
+        # Load the real preflight function without executing share setup on
+        # the host. All filesystem traversal stays inside this test's tree.
+        command = f"""
+            $ErrorActionPreference = 'Stop'
+            $tokens = $null; $errors = $null
+            $ast = [Management.Automation.Language.Parser]::ParseFile(
+                '{script_literal}', [ref]$tokens, [ref]$errors)
+            $definition = $ast.Find({{ param($node)
+                $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -eq 'Assert-BuildTree'
+            }}, $true)
+            . ([scriptblock]::Create($definition.Extent.Text))
+            try {{ Assert-BuildTree '{tree_literal}'; exit 0 }}
+            catch {{ Write-Output $_; exit 3 }}
+        """
         check = subprocess.run(['powershell', '-NoProfile', '-Command', command], capture_output=True, text=True)
         assert check.returncode == 3, check.stdout + check.stderr
         assert 'Unsafe descendant' in check.stdout

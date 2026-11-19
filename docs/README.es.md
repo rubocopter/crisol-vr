@@ -82,6 +82,10 @@ Estas asignaciones **no se han probado en sus respectivos mandos físicos**. UEV
 
 La release incluye **cinco overrides UEVR OpenXR** y el layout Sense nativo de SteamVR por separado. Las otras dieciséis plantillas JSON del código están inactivas y excluidas del ZIP; su presencia no acredita compatibilidad. El layout Sense utiliza entradas físicas Sony y un perfil de aplicación admitido por UEVR. La [guía de bindings](../profile/steamvr/README.txt) contiene los detalles y el diagnóstico.
 
+Quest 1/2/3/3S y Quest Pro utilizan el **perfil compatible Oculus Touch** cuando lo expone su runtime OpenXR. Con Quest Link/Air Link o VDXR de Virtual Desktop, selecciona **OpenXR** en UEVR y activa el envío de los mandos de movimiento. Con Steam Link o Virtual Desktop a través de SteamVR, utiliza SteamVR como runtime OpenXR. Cuando el runtime expone Oculus Touch, UEVR carga automáticamente el override Touch incluido. El layout de la comunidad y el instalador Sense corresponden a PS VR2 Sense.
+
+PICO, Vive Cosmos/Focus y otros mandos pueden utilizar las asignaciones compatibles que su runtime exponga mediante los perfiles de la tabla. El perfil efectivo determina sus controles. Los visores utilizados con mandos Index emplean la asignación Index. Consulta las rutas y pruebas en la [guía de compatibilidad](CONTROLLERS.md).
+
 ## Ajustes incluidos
 
 Los scripts alternan entre vista de cabeza en menús/inspección y apuntado con el mando derecho durante el juego.

@@ -50,11 +50,11 @@
       "action": "systembutton"
     },
     {
-      "path": "/user/hand/left/input/trigger/touch",
+      "path": "/user/hand/left/input/thumbrest/touch",
       "action": "thumbresttouchleft"
     },
     {
-      "path": "/user/hand/left/input/thumbstick/touch",
+      "path": "/user/hand/right/input/thumbrest/touch",
       "action": "thumbresttouchright"
     },
     {

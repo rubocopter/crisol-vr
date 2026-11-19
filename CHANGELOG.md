@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — controller compatibility, 2026-11-19
+
+- Correct the Oculus Touch thumbrest modifiers. Touching the left movement stick previously activated the right-thumbrest action and could consume locomotion with UEVR's right-touch D-pad mode.
+- Validate native movement axes and the physical Touch thumbrests during packaging, and exercise shipped controller bindings through the input helper with physical button/contact states.
+- Document the effective OpenXR routes for Quest/Touch, Index, Vive, WMR, compatible controller families and native Sense. The Quest 3 no-movement report's transport/runtime remains unknown, so it is not established that the corrected modifier explains that report.
+
 ## [v1.0.0] - 2026-11-14
 
 - Include the tested native PS VR2 Sense SteamVR layout, preserving the author's saved mapping. Prioritize the published community layout, with a native JSON and PowerShell guide as fallback; keep UEVR on OpenXR without Oculus conversion.

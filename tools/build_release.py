@@ -116,6 +116,8 @@ def component_types(profile: str, side: str) -> dict[str, str]:
             for kind in ("click", "touch"):
                 components[f"input/{button}/{kind}"] = "boolean"
         components.update({"input/trigger/touch": "boolean", "input/thumbstick/touch": "boolean"})
+    if profile == "oculus_touch_controller":
+        components["input/thumbrest/touch"] = "boolean"
     return components
 
 
@@ -193,6 +195,10 @@ def validate_profile(profile: str, input_type: str, data: dict) -> None:
             required |= {"grip", "joystick", "joystickclick", "haptic"}
             required |= {"bbuttonright", "bbuttonleft"} if side == "left" else {"abuttonright", "abuttonleft"}
         require(not required - effective[side], f"Missing {side} gameplay actions: {sorted(required - effective[side])}")
+        if input_type != "simple":
+            axis = "trackpad" if input_type == "touchpad" else "thumbstick"
+            require(direct[side].get("joystick") == f"/user/hand/{side}/input/{axis}",
+                    f"Movement must use the {side} native {axis}")
         if side == "left":
             require("abuttontouchright" not in effective[side], "Left AButtonTouchRight is reserved for native Sense Create")
         if profile in {"oculus_touch_controller", "valve_index_controller"}:
@@ -209,7 +215,10 @@ def validate_profile(profile: str, input_type: str, data: dict) -> None:
             require(not {"bbuttontouchright", "abuttontouchleft"} <= effective[side], "Vive marker pair reserved for trackpad locomotion")
     require(any("systembutton" in actions for actions in effective.values()), "Missing pause/View route")
     if profile == "oculus_touch_controller":
-        require(direct["left"].get("systembutton") == "/user/hand/left/input/menu/click", "Missing Sense Options route")
+        require(direct["left"].get("systembutton") == "/user/hand/left/input/menu/click", "Missing Touch menu route")
+        for side in direct:
+            require(direct[side].get(f"thumbresttouch{side}") == f"/user/hand/{side}/input/thumbrest/touch",
+                    "Touch D-pad modifiers must use the matching physical thumbrest")
 
 
 def profile_files() -> list[Path]:
