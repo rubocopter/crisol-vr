@@ -42,9 +42,11 @@ regressions exercise the shipped mappings and input helper. They cover
 physical button/contact states and preserve normal stick axes across core
 controller families. Other controller hardware still needs live testing.
 
-Sparrowone reported no Quest 3 movement with UEVR 1.05. The connection and
-selected runtime were not supplied. Virtual Desktop/OpenXR is a working
-assumption, and the exact cause remains unconfirmed.
+A Quest 3 user reported working movement with the Crisol profile and UEVR
+Nightly 01143 over Virtual Desktop and OpenXR. A crash when entering gameplay prevented
+further testing. The active OpenXR runtime (VDXR or SteamVR) is unconfirmed.
+See the [troubleshooting guide](TROUBLESHOOTING.md) for the launch, graphics
+and audio checks.
 
 OpenVR uses UEVR's SteamVR action bindings rather than the supplied
 `_interaction_profiles_*.json` overrides. The OpenXR input helper leaves

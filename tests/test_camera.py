@@ -20,7 +20,7 @@ def camera():
         }, functions = {
             log_info = function() end,
             log_warn = function(s) warnings[#warnings+1] = s end,
-        }}, sdk = {callbacks = {
+        }, sdk={callbacks={on_script_reset=function(fn) script_reset=fn end}}}, sdk = {callbacks = {
             on_pre_engine_tick = function(fn) pre_tick = fn end,
             on_post_engine_tick = function(fn) post_tick = fn end,
             on_xinput_get_state = function(fn) input_tick = fn end,
@@ -34,6 +34,11 @@ def camera():
         } end
         package.preload['libs/crisol_controller_input'] = function() return {
             process = function() end,
+        } end
+        package.preload['libs/crisol_aim'] = function() return {
+            set_enabled = function() end,
+            get_ray = function() return nil end,
+            apply_controller_rotation = function() return false end,
         } end
     """)
     lua.execute(SCRIPT.read_text(encoding="utf-8"))

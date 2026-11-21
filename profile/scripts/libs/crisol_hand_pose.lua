@@ -2,6 +2,7 @@ local utils = require('libs/uevr_utils')
 local hands = require('libs/hands')
 local controllers = require('libs/controllers')
 local animation = require('libs/animation')
+local aim = require('libs/crisol_aim')
 local M = {}
 local weapon, walkie, attached_weapon, source, mathlib, hit
 local tracked_walkie
@@ -17,19 +18,12 @@ local projection_original={}
 local player, native_anim, native_mode, right_recovery
 local weapon_bone, left_wrist, no_socket, right_free
 local pistol
--- Use physical controller proximity for the two-handed gesture. The gun
--- mesh can move at a different phase of the stereo render, so its projected
--- palm position must not decide whether the player is touching both hands.
--- Grip origins are not the surfaces of the Sense shells/hands. Treat each as
--- an approximate 7 cm contact volume rather than requiring origins to cross.
--- These starting values are NOT measured on PSVR2 hardware. Calibrate here;
--- offsets are metres in each OpenXR grip's local axes (+X right,+Y up,-Z forward).
--- Zero offsets avoid inventing an unverified Sense grip-to-shell transform.
-M.support_contact={acquire_cm=14,release_cm=22,
-    left_offset_m={x=0,y=0,z=0},right_offset_m={x=0,y=0,z=0}}
-local SUPPORT_CONTACT_TIME = 0.15
-local SUPPORT_RELEASE_TIME = 0.35
-local hand_effects = {}
+M.support_contact={acquire_cm=8,release_cm=12}
+local SUPPORT_CONTACT_TIME = 0.12
+local SUPPORT_SAMPLE_TIMEOUT = 0.12
+local MAX_SUPPORT_REACH = 65
+local support_sample
+local reload_effects, reload_effects_delay = {}, 0
 local magazine_original = {}
 local touch_handles = {}
 -- These two unused UEVR actions carry left trigger and stick touch in this
@@ -52,18 +46,23 @@ local scripted_interactable_names = {
     'wagon', 'moveobject', 'movetruck', 'pushable', 'ladder', 'placestairs', 'gabrielnarrow',
 }
 local left_pose={}
-local input={grip=0,left_trigger=0,right_trigger=false}
+local input={grip=0,left_trigger=0,right_grip=false,right_trigger=false,right_trigger_amount=0}
 
 utils.registerOnInputGetStateCallback(function(_,index,state)
     local vr=uevr.params.vr
     if not vr.is_using_controllers() then
-        input.grip,input.left_trigger,input.right_trigger=0,0,false
+        input.grip,input.left_trigger=0,0
+        input.right_grip,input.right_trigger,input.right_trigger_amount=false,false,0
         return
     end
     if index~=vr.get_lowest_xinput_index() then return end
     input.grip=utils.isButtonPressed(state, XINPUT_GAMEPAD_LEFT_SHOULDER) and 1 or 0
     input.left_trigger=state.Gamepad.bLeftTrigger/255
     input.right_trigger=state.Gamepad.bRightTrigger>100
+    local swapped=vr.get_mod_value and vr:get_mod_value('VR_SwapControllerInputs')=='true'
+    local right_shoulder=swapped and XINPUT_GAMEPAD_LEFT_SHOULDER or XINPUT_GAMEPAD_RIGHT_SHOULDER
+    input.right_grip=utils.isButtonPressed(state,right_shoulder)
+    input.right_trigger_amount=(swapped and state.Gamepad.bLeftTrigger or state.Gamepad.bRightTrigger)/255
 end)
 local function warn(err)
     err = tostring(err)
@@ -89,7 +88,7 @@ local function rotate_quat(q,v,inverse)
     return {x=v.x+w*tx+y*tz-z*ty,y=v.y+w*ty+z*tx-x*tz,z=v.z+w*tz+x*ty-y*tx}
 end
 local physical_left,physical_right,physical_left_rotation,physical_right_rotation
-local function controller_distance()
+local function controller_gap()
     -- Read both devices from the same runtime pose set. MotionController world
     -- components can still contain the previous frame (or their spawn origin).
     local vr=uevr.params.vr
@@ -103,7 +102,7 @@ local function controller_distance()
         physical_right=physical_right or Vector3f.new(0,0,0)
         physical_left_rotation=physical_left_rotation or Quaternionf.new(0,0,0,1)
         physical_right_rotation=physical_right_rotation or Quaternionf.new(0,0,0,1)
-        local function sample(index,position,rotation,offset)
+        local function sample(index,position,rotation)
             -- get_pose -> VR::get_transform(index, grip=true), NOT aim pose.
             -- UEVR exposes no per-device OpenXR location-valid/tracked flags.
             -- Reject no-op/nonfinite/identity-origin samples; unchanged valid
@@ -123,11 +122,10 @@ local function controller_distance()
                 norm=norm+q*q
             end
             if origin==0 or math.abs(norm-1)>0.01 then return end
-            local contact=rotate_quat(rotation,offset)
-            return {x=position.x+contact.x,y=position.y+contact.y,z=position.z+contact.z}
+            return position
         end
-        local a=sample(l,physical_left,physical_left_rotation,M.support_contact.left_offset_m)
-        local b=sample(r,physical_right,physical_right_rotation,M.support_contact.right_offset_m)
+        local a=sample(l,physical_left,physical_left_rotation)
+        local b=sample(r,physical_right,physical_right_rotation)
         if not a or not b then return end
         local sum=0
         for _,axis in ipairs({'x','y','z'}) do
@@ -150,25 +148,28 @@ local function world_projection(component)
     end
 end
 
-local function build_left_animation(mesh)
-    left_pose={mesh=mesh,grip={alpha=0,joints={}},trigger={alpha=0,joints={}},thumb={alpha=0,joints={}},original_bones={}}
-    local wrist = mesh:GetBoneTransformByName(utils.fname_from_string('l_wrist_jnt'),1).Translation
-    local dorsal = mesh:GetBoneTransformByName(utils.fname_from_string('l_wrist_up_jnt'),1).Translation
+local function build_free_animation(mesh,prefix)
+    local pose={mesh=mesh,grip={alpha=0,joints={}},trigger={alpha=0,joints={}},thumb={alpha=0,joints={}}}
+    local function location(name)
+        return mesh:GetBoneTransformByName(utils.fname_from_string(prefix..name),1).Translation
+    end
+    local wrist = location('wrist_jnt')
+    local dorsal = location('wrist_up_jnt')
     local palm_in = normalize(vector_sub(wrist,dorsal))
-    local index_base = mesh:GetBoneTransformByName(utils.fname_from_string('l_index_01_jnt'),1).Translation
+    local index_base = location('index_01_jnt')
     for _, finger in ipairs(fingers) do
-        local first = mesh:GetBoneTransformByName(utils.fname_from_string('l_'..finger..'_01_jnt'),1).Translation
-        local second = mesh:GetBoneTransformByName(utils.fname_from_string('l_'..finger..'_02_jnt'),1).Translation
+        local first = location(finger..'_01_jnt')
+        local second = location(finger..'_02_jnt')
         local direction = normalize(vector_sub(second,first))
-        local bend_towards,group,amounts = palm_in,left_pose.grip,{58,75,42}
+        local bend_towards,group,amounts = palm_in,pose.grip,{58,75,42}
         if finger=='thumb' then
-            bend_towards,group,amounts = normalize(vector_sub(index_base,first)),left_pose.thumb,{17,20,12}
+            bend_towards,group,amounts = normalize(vector_sub(index_base,first)),pose.thumb,{17,20,12}
         elseif finger=='index' then
-            group,amounts = left_pose.trigger,{45,60,35}
+            group,amounts = pose.trigger,{45,60,35}
         end
         local axis = normalize(cross(direction,bend_towards))
         for joint=1,3 do
-            local name = string.format('l_%s_%02d_jnt',finger,joint)
+            local name = string.format('%s%s_%02d_jnt',prefix,finger,joint)
             local bone = utils.fname_from_string(name)
             local local_rotation, parent_transform = animation.getBoneSpaceLocalRotator(mesh,bone,1)
             local local_axis = mathlib:InverseTransformDirection(parent_transform,axis)
@@ -176,26 +177,33 @@ local function build_left_animation(mesh)
             group.joints[#group.joints+1]={bone=bone,open=local_rotation,closed=mathlib:ComposeRotators(local_rotation,curl)}
         end
     end
-    local wrist_name=utils.fname_from_string('l_wrist_jnt')
+    return pose
+end
+
+local function capture_wrist_bones(mesh,wrist)
+    local bones={}
     for index=0,mesh:GetNumBones()-1 do
         local bone=mesh:GetBoneName(index)
-        if bone:to_string()=='l_wrist_jnt' or mesh:BoneIsChildOf(bone,wrist_name) then
-            left_pose.original_bones[#left_pose.original_bones+1]={name=bone,transform=mesh:GetBoneTransformByName(bone,1)}
+        if bone:to_string()==wrist:to_string() or mesh:BoneIsChildOf(bone,wrist) then
+            bones[#bones+1]={name=bone,transform=mesh:GetBoneTransformByName(bone,1)}
         end
+    end
+    return bones
+end
+
+local function update_fingers(mesh,group,target,delta)
+    if math.abs(group.alpha-target)<0.002 then return end
+    local step=math.min(1,math.max(0,delta)/0.075)
+    group.alpha=group.alpha+(target-group.alpha)*step
+    for _,joint in ipairs(group.joints) do
+        local rotation=mathlib:RLerp(joint.open,joint.closed,group.alpha,true)
+        animation.setBoneSpaceLocalRotator(mesh,joint.bone,rotation,1)
     end
 end
 
 local function update_left_animation(delta,pose)
     if not valid(left_pose.mesh) then return end
-    local function update(group,target)
-        if math.abs(group.alpha-target)<0.002 then return end
-        local step=math.min(1,delta/0.075)
-        group.alpha=group.alpha+(target-group.alpha)*step
-        for _,joint in ipairs(group.joints) do
-            local rotation=mathlib:RLerp(joint.open,joint.closed,group.alpha,true)
-            animation.setBoneSpaceLocalRotator(left_pose.mesh,joint.bone,rotation,1)
-        end
-    end
+    local function update(group,target) update_fingers(left_pose.mesh,group,target,delta) end
     if pose=='reload' then
         update(left_pose.grip,0.64)
         update(left_pose.trigger,0.54)
@@ -218,6 +226,23 @@ local function update_left_animation(delta,pose)
     update(left_pose.thumb,thumb_resting and 0.75 or (input.grip==1 and 0.36 or 0.14))
 end
 
+local function right_palm_transform(mesh)
+    local function location(name)
+        return mesh:GetBoneTransformByName(utils.fname_from_string(name),1).Translation
+    end
+    local wrist=location('r_wrist_jnt')
+    local middle=location('r_middle_01_jnt')
+    local forward=normalize(vector_sub(middle,wrist))
+    local dorsal=normalize(vector_sub(location('r_wrist_up_jnt'),wrist))
+    assert(math.abs(dot(forward,dorsal))<0.999,'Degenerate right palm frame')
+    local frame=mathlib:MakeRotFromXZ(forward,dorsal)
+    local midpoint=scale(vector_add(wrist,middle),0.5)
+    local one=utils.vector(1,1,1)
+    -- Convert mesh palm axes to the controller component's forward/up axes.
+    -- Invert the full frame so compound rotations and palm offset agree.
+    return mathlib:InvertTransform(mathlib:MakeTransform(midpoint,frame,one))
+end
+
 function M.setup(pawn)
     player,source = pawn,pawn.PlayerArms
     saved_tick = source.VisibilityBasedAnimTickOption
@@ -237,8 +262,9 @@ function M.setup(pawn)
     end
     hands.setAutoHandleInput(false)
     source:SetVisibility(false,false)
-    build_left_animation(hands.getHandComponent(0,'Arms'))
     local left = hands.getHandComponent(0,'Arms')
+    left_pose=build_free_animation(left,'l_')
+    left_pose.original_bones=capture_wrist_bones(left,left_wrist)
     local a = left:GetBoneTransformByName(utils.fname_from_string('l_wrist_jnt'),1).Translation
     local b = left:GetBoneTransformByName(utils.fname_from_string('l_middle_01_jnt'),1).Translation
     local palm = utils.vector((a.X+b.X)/2,(a.Y+b.Y)/2,(a.Z+b.Z)/2)
@@ -247,15 +273,23 @@ function M.setup(pawn)
     utils.set_component_relative_transform(left,{-p.X,-p.Y,-p.Z},{Pitch=rotation.Pitch,Yaw=rotation.Yaw,Roll=rotation.Roll})
     left_pose.wrist_inverse=mathlib:InvertTransform(left:GetBoneTransformByName(left_wrist,1))
     left_pose.free=mathlib:MakeTransform(left.RelativeLocation,left.RelativeRotation,left.RelativeScale3D)
+    left_pose.contact_local=mathlib:TransformLocation(left_pose.free,palm)
     local right=hands.getHandComponent(1,'Arms')
-    right_free={transform=mathlib:MakeTransform(right.RelativeLocation,right.RelativeRotation,right.RelativeScale3D),bones={}}
-    local right_wrist=utils.fname_from_string('r_wrist_jnt')
-    right_free.wrist=right:GetBoneTransformByName(right_wrist,1)
-    for index=0,right:GetNumBones()-1 do
-        local bone=right:GetBoneName(index)
-        if bone:to_string()=='r_wrist_jnt' or right:BoneIsChildOf(bone,right_wrist) then
-            right_free.bones[#right_free.bones+1]={name=bone,transform=right:GetBoneTransformByName(bone,1)}
-        end
+    right_free={bones=capture_wrist_bones(right,utils.fname_from_string('r_wrist_jnt')),
+        walkie_transform=mathlib:MakeTransform(right.RelativeLocation,right.RelativeRotation,right.RelativeScale3D)}
+    right_free.transform=right_free.walkie_transform
+    local aligned,transform=pcall(right_palm_transform,right)
+    if aligned then
+        right:K2_SetRelativeTransform(transform,false,hit,false)
+        right_free.transform=transform
+    else
+        warn(transform)
+    end
+    local animated,pose=pcall(build_free_animation,right,'r_')
+    if animated then
+        right_free.grip,right_free.trigger,right_free.thumb=pose.grip,pose.trigger,pose.thumb
+    else
+        warn(pose)
     end
     weapon,walkie,attached_weapon,tracked_walkie = nil,nil,nil,nil
 end
@@ -339,7 +373,8 @@ local function set_left_parent(parent,transform)
 end
 
 local function reset_support_latch()
-    if pistol then pistol.near_time,pistol.far_time,pistol.supporting=0,0,false end
+    support_sample=nil
+    if pistol then pistol.near_time,pistol.supporting=0,false end
 end
 
 local function release_left()
@@ -409,6 +444,9 @@ local function restore_right_free(force)
             for _,entry in ipairs(right_free.bones) do
                 mesh:SetBoneTransformByName(entry.name,entry.transform,1)
             end
+            if right_free.grip then
+                right_free.grip.alpha,right_free.trigger.alpha,right_free.thumb.alpha=0,0,0
+            end
         end
     end
     hands.setHoldingAttachment(1,false)
@@ -434,7 +472,7 @@ local function start_walkie_tracking(component)
     -- rotation (which can make it appear reversed or detached).
     local grip=grip_cache[component:get_address()]
     if not grip then return false end
-    local prop_in_controller=mathlib:ComposeTransforms(mathlib:InvertTransform(grip),right_free.transform)
+    local prop_in_controller=mathlib:ComposeTransforms(mathlib:InvertTransform(grip),right_free.walkie_transform)
     tracked_walkie={component=component,controller=controller,
         parent=component:GetAttachParent(),socket=component:GetAttachSocketName(),
         relative=mathlib:MakeTransform(component.RelativeLocation,component.RelativeRotation,component.RelativeScale3D),
@@ -445,6 +483,40 @@ local function start_walkie_tracking(component)
     return true
 end
 
+local function support_in_weapon()
+    local anchor=source:GetSocketTransform(weapon_bone,0)
+    local wrist=source:GetSocketTransform(left_wrist,0)
+    local offset=mathlib:InverseTransformLocation(anchor,wrist.Translation)
+    if dot(offset,offset)>MAX_SUPPORT_REACH^2 then return end
+    return anchor,wrist
+end
+
+local function observe_support(world_to_meters)
+    support_sample=nil
+    if native_mode or not pistol or pistol.mesh~=weapon or attached_weapon~=weapon
+        or not valid(weapon) or not valid(source) then return end
+    local left,right=controllers.getController(0,true),controllers.getController(1,true)
+    if not valid(left) or not valid(right) then return end
+    local anchor,wrist=support_in_weapon()
+    if not anchor then return end
+    local middle=source:GetSocketTransform(utils.fname_from_string('l_middle_01_jnt'),0)
+    local palm=scale(vector_add(wrist.Translation,middle.Translation),0.5)
+    local contact=mathlib:InverseTransformLocation(anchor,palm)
+    local target=mathlib:TransformLocation(weapon:K2_GetComponentToWorld(),contact)
+    -- Sample where the free palm would be even while its mesh is mounted.
+    local free_palm=mathlib:TransformLocation(left:K2_GetComponentToWorld(),
+        left_pose.contact_local or utils.vector(0,0,0))
+    local world_scale=uevr.params.vr.get_mod_value and tonumber(uevr.params.vr:get_mod_value('VR_WorldScale')) or 1
+    local cm_per_unit=100/math.max(1,(world_to_meters or 100)*world_scale)
+    local delta=vector_sub(target,free_palm)
+    local reach=vector_sub(target,right:K2_GetComponentLocation())
+    local palm_offset=vector_sub(free_palm,left:K2_GetComponentLocation())
+    support_sample={weapon=weapon,left=left,right=right,age=0,
+        distance=math.sqrt(dot(delta,delta))*cm_per_unit,
+        reach=math.sqrt(dot(reach,reach))*cm_per_unit,
+        palm_offset=math.sqrt(dot(palm_offset,palm_offset))*cm_per_unit}
+end
+
 local function mount_native_left_support()
     if not pistol or not valid(weapon) or not valid(left_pose.mesh) then return false end
     -- Both hands must follow the *same* UObjectHook weapon during the stereo
@@ -453,11 +525,10 @@ local function mount_native_left_support()
     -- Sample both native transforms in the game tick's authored space. The
     -- weapon mesh may still carry the stereo VR transform until UObjectHook's
     -- queued nonpermanent restore; using it here mixes two frames/spaces.
-    local anchor=source:GetSocketTransform(weapon_bone,0)
-    local native_wrist=source:GetSocketTransform(left_wrist,0)
+    local anchor,native_wrist=support_in_weapon()
+    if not anchor then return false end
     local wrist=mathlib:MakeRelativeTransform(native_wrist,anchor)
     local offset=wrist.Translation
-    if dot(offset,offset)>40*40 then return false end
     local rotation=mathlib:TransformRotation(wrist,utils.rotator(0,0,0))
     wrist=mathlib:MakeTransform(offset,rotation,utils.vector(1,1,1))
     local relative=mathlib:ComposeTransforms(left_pose.wrist_inverse,wrist)
@@ -478,9 +549,11 @@ local function mount_native_left_support()
 end
 
 local function update_left_mount(mode,weapon_ready,delta)
+    left_pose.reload_wrist,left_pose.reload_vat=nil,nil
     local right=hands.getHandComponent(1,'Arms')
+    local left_controller,right_controller=controllers.getController(0,true),controllers.getController(1,true)
     if not weapon_ready or not uevr.params.vr.is_using_controllers()
-        or not valid(controllers.getController(0,true)) or not valid(controllers.getController(1,true))
+        or not valid(left_controller) or not valid(right_controller)
         or attached_weapon~=weapon or not valid(right) or right:GetAttachParent()~=weapon
         or not grip_cache[weapon:get_address()] then
         release_left()
@@ -501,32 +574,36 @@ local function update_left_mount(mode,weapon_ready,delta)
         local relative=mathlib:ComposeTransforms(left_pose.wrist_inverse,wrist)
         left_pose.mounted=true
         if set_left_parent(weapon,relative) then
+            left_pose.reload_wrist=wrist
+            local vat=utils.fname_from_string('VAT_reload_socket')
+            if source:DoesSocketExist(vat) then
+                left_pose.reload_vat=mathlib:MakeRelativeTransform(source:GetSocketTransform(vat,0),anchor)
+            end
             return 'reload'
         end
     elseif weapon_ready and pistol and pistol.mesh==weapon then
-        local distance=controller_distance()
-        if not distance then release_left(); return end
         if not left_pose.support_weapon and (left_pose.mounted or left_pose.support_bones_dirty) then
             if not release_left() then return end
         end
+        local observation=support_sample
+        local gap=controller_gap()
+        if not gap or not observation or observation.weapon~=weapon
+            or observation.left~=left_controller or observation.right~=right_controller
+            or observation.age>SUPPORT_SAMPLE_TIMEOUT then release_left(); return end
+        local limit=pistol.supporting and M.support_contact.release_cm or M.support_contact.acquire_cm
+        -- The raw grip separation can disprove a contact even while UEVR's
+        -- smoothed render components are still catching up to a quick move.
+        local within=observation.distance<=limit
+            and math.abs(gap-observation.reach)<=limit+observation.palm_offset
         local elapsed=math.min(math.max(delta,0),0.05)
-        if pistol.supporting then
-            if distance>M.support_contact.release_cm then
-                pistol.far_time=(pistol.far_time or 0)+elapsed
-                if pistol.far_time>=SUPPORT_RELEASE_TIME then
-                    release_left()
-                    return
-                end
-            else
-                pistol.far_time=0
-            end
-        else
-            pistol.far_time=0
-            if distance<=M.support_contact.acquire_cm then
+        if not within then
+            if pistol.supporting then release_left() else pistol.near_time=0 end
+            return
+        elseif not pistol.supporting then
+            if not observation.consumed then
+                observation.consumed=true
                 pistol.near_time=(pistol.near_time or 0)+elapsed
                 pistol.supporting=pistol.near_time>=SUPPORT_CONTACT_TIME
-            else
-                pistol.near_time=0
             end
         end
         if pistol.supporting then
@@ -545,96 +622,136 @@ local function original_effect(component)
         socket=component:GetAttachSocketName(),
         relative=mathlib:MakeTransform(component.RelativeLocation,component.RelativeRotation,component.RelativeScale3D),
         world=component:K2_GetComponentToWorld(),
+        absolute_location=component.bAbsoluteLocation==true,
+        absolute_rotation=component.bAbsoluteRotation==true,
+        absolute_scale=component.bAbsoluteScale==true,
+        first_person=component.FirstPersonPrimitiveType,
     }
 end
 
-local function mount_effect(entry,target,socket,relative)
-    local component=entry.component
-    if not valid(component) or not valid(target) then return end
-    if component:GetAttachParent()~=target then
-        -- Keep authored effects that have been moved by the game recoverable.
-        local original=original_effect(component)
-        if not component:K2_AttachToComponent(target,socket,1,1,1,false) then return end
-        entry.parent,entry.socket,entry.relative,entry.world=original.parent,original.socket,original.relative,original.world
-        entry.target=target
+local function restore_effect_render_state(entry)
+    entry.component:SetAbsolute(entry.absolute_location,entry.absolute_rotation,entry.absolute_scale)
+    if entry.first_person~=nil and entry.first_person~=0 then
+        entry.component:SetFirstPersonPrimitiveType(entry.first_person)
     end
-    component:K2_SetRelativeTransform(relative,false,hit,false)
 end
 
-local function restore_effects(entries)
-    for _,entry in ipairs(entries) do
+local function restore_reload_effects()
+    reload_effects_delay=0
+    for address,entry in pairs(reload_effects) do
         local component=entry.component
         local parent=valid(component) and component:GetAttachParent()
-        if entry.target and valid(component)
-            and (parent==entry.target or (not valid(parent) and not valid(entry.target))) then
+        if not entry.target or not valid(component) then
+            reload_effects[address]=nil
+        elseif parent==entry.target or (not valid(parent) and not valid(entry.target)) then
             if valid(entry.parent) then
                 if component:K2_AttachToComponent(entry.parent,entry.socket,1,1,1,false) then
+                    restore_effect_render_state(entry)
                     component:K2_SetRelativeTransform(entry.relative,false,hit,false)
-                    entry.target=nil
+                    reload_effects[address]=nil
                 end
             else
                 component:K2_DetachFromComponent(1,1,1,false)
+                restore_effect_render_state(entry)
                 component:K2_SetWorldTransform(entry.world,false,hit,false)
-                entry.target=nil
+                reload_effects[address]=nil
             end
         else
-            entry.target=nil
+            -- Crisol reattached this effect itself. Keep its new hierarchy.
+            restore_effect_render_state(entry)
+            reload_effects[address]=nil
         end
     end
 end
 
-local function mount_hand_effects()
-    local left=left_pose.mesh
-    if not valid(left) then return end
-    local vat=utils.fname_from_string('VAT_reload_socket')
-    if not source:DoesSocketExist(vat) then return end
-    if #hand_effects==0 and player.K2_GetComponentsByClass then
-        local class=utils.get_class('Class /Script/Niagara.NiagaraComponent')
-        if not class then return end
-        local effects={DamageState_Start=true,DamageState_Loop=true,DamageState_End=true}
-        for _,component in ipairs(player:K2_GetComponentsByClass(class) or {}) do
-            if effects[component:get_fname():to_string()] and component:GetAttachParent()==source
-                and component:GetAttachSocketName():to_string():lower()=='vat_reload_socket' then
-                hand_effects[#hand_effects+1]=original_effect(component)
-            end
-        end
-    end
-    if #hand_effects==0 then return end
-    local vat_in_wrist=mathlib:MakeRelativeTransform(source:GetSocketTransform(vat,0),source:GetSocketTransform(left_wrist,0))
-    for _,entry in ipairs(hand_effects) do
-        if valid(entry.component) and entry.component:GetAttachParent()==source then
-            mount_effect(entry,left,left_wrist,mathlib:ComposeTransforms(entry.relative,vat_in_wrist))
-        end
-    end
-end
+local reload_systems={
+    NS_PistolStartReloadSystem=true,NS_PistolLoopReloadSystem=true,NS_PistolEndReloadSystem=true,
+    NS_MachineGunReload_Loop=true,MachineGunBloodTearingReload_NS=true,ShotgunReloadBlood_NS=true,
+    NS_HarpoonBloodReload=true,NS_Sniper_BloodReload=true,Sniper_Hand_ReloadBlood_NS=true,
+    SplashBloodReload_NS=true,
+}
+local arm_reload_effects={DamageState_Start=true,DamageState_Loop=true,DamageState_End=true}
 
-local function sync_pistol_effects(active)
-    if not pistol or not pistol.to_controller then return end
-    local right=controllers.getController(1,true)
-    if not valid(right) then return end
-    for _,entry in ipairs(pistol.effects) do
-        if valid(entry.component) then
-            local component=entry.component
-            if component:GetAttachParent()~=right then
-                local original=original_effect(component)
-                entry.parent,entry.socket,entry.relative,entry.world=original.parent,original.socket,original.relative,original.world
-                entry.target=nil
-            end
-            if active or not entry.target then
-                -- The actual gun is restored to its flat pose between stereo
-                -- renders. The Sense component stays in VR space for Niagara's
-                -- simulation tick as well as for local-space emitters.
-                local relative
-                if entry.parent==pistol.mesh then
-                    relative=mathlib:ComposeTransforms(entry.relative,pistol.mesh:GetSocketTransform(entry.socket,2))
-                else
-                    local native=entry.relative
-                    if valid(entry.parent) then
-                        native=mathlib:ComposeTransforms(native,entry.parent:GetSocketTransform(entry.socket,0))
+local function discover_reload_effects(delta)
+    reload_effects_delay=reload_effects_delay-(delta or 0)
+    if reload_effects_delay>0 then return end
+    reload_effects_delay=0.15
+    local owner=weapon:GetOwner()
+    if not valid(owner) then return end
+    local function track(component)
+        if not valid(component) or not component.SetAbsolute then return end
+        local address=component:get_address()
+        if not reload_effects[address] then reload_effects[address]=original_effect(component) end
+    end
+    for _,name in ipairs({'GetStartReloadComponent','GetLoopReloadComponent','GetEndReloadComponent'}) do
+        if owner[name] then track(owner[name](owner)) end
+    end
+    local class=utils.get_class('Class /Script/Niagara.NiagaraComponent')
+    if not class then return end
+    for _,actor in ipairs({player,owner}) do
+        if actor.K2_GetComponentsByClass then
+            for _,component in ipairs(actor:K2_GetComponentsByClass(class) or {}) do
+                if valid(component) then
+                    local asset=component.Asset
+                    if (valid(asset) and reload_systems[asset:get_fname():to_string()])
+                        or (actor==player and arm_reload_effects[component:get_fname():to_string()]
+                            and component:GetAttachParent()==source
+                            and component:GetAttachSocketName():to_string():lower()=='vat_reload_socket') then
+                        track(component)
                     end
-                    relative=mathlib:MakeRelativeTransform(native,source:GetSocketTransform(weapon_bone,0))
                 end
-                mount_effect(entry,right,no_socket,mathlib:ComposeTransforms(relative,pistol.to_controller))
+            end
+        end
+    end
+end
+
+local function place_reload_effects()
+    local left=left_pose.mesh
+    if not left_pose.reload_wrist or not next(reload_effects) or not valid(left) or not valid(weapon) then return end
+    -- Use the authored reload frame already applied to the hand, composed
+    -- with the actual stereo weapon. PoseableMesh world bones can still be
+    -- from the native position when UObjectHook has just moved the parent.
+    local weapon_world=weapon:K2_GetComponentToWorld()
+    local wrist_world=mathlib:ComposeTransforms(left_pose.reload_wrist,weapon_world)
+    local vat_world=mathlib:ComposeTransforms(left_pose.reload_vat or left_pose.reload_wrist,weapon_world)
+    for address,entry in pairs(reload_effects) do
+        local component=entry.component
+        if not valid(component) then
+            reload_effects[address]=nil
+        else
+            local mounting=component:GetAttachParent()~=left
+                or component:GetAttachSocketName():to_string()~=left_wrist:to_string()
+            if mounting then
+                if entry.target then restore_effect_render_state(entry) end
+                local original=original_effect(component)
+                original.positioned=entry.positioned
+                reload_effects[address],entry=original,original
+                if component:K2_AttachToComponent(left,left_wrist,1,1,1,false) then
+                    entry.target=left
+                    component:SetAbsolute(true,true,true)
+                    if entry.first_person~=nil and entry.first_person~=0 then
+                        component:SetFirstPersonPrimitiveType(0)
+                    end
+                end
+            end
+            if entry.target==left then
+                -- The gun returns to its native pose before Niagara simulates.
+                -- Keep the emitter at the last rendered wrist in world space.
+                local offset,anchor=entry.relative,vat_world
+                if entry.parent~=source or entry.socket:to_string():lower()~='vat_reload_socket' then
+                    anchor=wrist_world
+                    offset=mathlib:MakeTransform(utils.vector(0,0,0),utils.rotator(0,0,0),offset.Scale3D)
+                end
+                local placement=mathlib:ComposeTransforms(offset,anchor)
+                component:K2_SetWorldTransform(placement,false,hit,false)
+                if not entry.positioned then
+                    entry.positioned=true
+                    -- Replay the initial burst if Crisol already started it at the native socket.
+                    if component.ResetSystem and component.IsActive and component:IsActive() then component:ResetSystem() end
+                    local shift=vector_sub(placement.Translation,wrist_world.Translation)
+                    uevr.params.functions.log_info(string.format('[Crisol reload] %s mounted %.1f cm from left wrist',
+                        component:get_fname():to_string(),math.sqrt(dot(shift,shift))))
+                end
             end
         end
     end
@@ -698,24 +815,15 @@ local function center_weapon_palm(palm)
     uevr.params.functions.log_info(string.format('[Crisol hand pose] Centered %s palm at Sense grip: %.2f,%.2f,%.2f',cls,palm.X,palm.Y,palm.Z))
 end
 
-local function setup_pistol(palm)
+local function setup_pistol()
     local owner=weapon:GetOwner()
     if pistol and pistol.mesh==weapon then return end
-    if pistol then restore_effects(pistol.effects) end
-    -- The contact latch/native support pose applies to every supported gun.
-    -- Only the pistol needs the reservoir and reload-effect adjustments below.
-    pistol={mesh=weapon,palm=palm,effects={}}
+    pistol={mesh=weapon}
+
     if not owner:get_full_name():find('^CRWDivinePistolNew_BP_C ') then return end
     local function point(name) return weapon:GetSocketTransform(utils.fname_from_string(name),2).Translation end
     local barrel=point('DP_barrel')
     local forward=normalize(vector_sub(point('Muzzle'),barrel))
-
-    for _,name in ipairs({'GetStartReloadComponent','GetLoopReloadComponent','GetEndReloadComponent'}) do
-        if owner[name] then
-            local component=owner[name](owner)
-            if valid(component) then pistol.effects[#pistol.effects+1]=original_effect(component) end
-        end
-    end
 
     -- The inner blood mesh mounts to MagSocket; recess it toward the barrel
     -- along the depth of the magazine, in socket space.
@@ -739,23 +847,39 @@ local function setup_pistol(palm)
 end
 
 utils.registerPostCalculateStereoViewCallback(function(_,view_index)
-    if not pistol or native_mode=='native' or (view_index+1)%2~=0
+    if native_mode=='native' or (view_index+1)%2~=0
         or not uevr.params.vr.is_using_controllers() then return end
+    if native_mode=='reload' and attached_weapon==weapon then
+        local good,message=pcall(place_reload_effects)
+        if not good then warn(message) end
+    end
     local ok,err=pcall(function()
-        if pistol.mesh~=attached_weapon or not valid(pistol.mesh) then return end
+        if not valid(weapon) or attached_weapon~=weapon or weapon==walkie then return end
         local right=controllers.getController(1,true)
         if not valid(right) then return end
-        if not pistol.to_controller then
-            -- Capture the pistol's stable grip relative to the right controller
-            -- once UEVR has moved its mesh into the tracked hand's space.
-            local actual=pistol.mesh:K2_GetComponentToWorld()
-            local palm_world=mathlib:TransformLocation(actual,pistol.palm)
-            local gap=vector_sub(right:K2_GetComponentLocation(),palm_world)
-            if dot(gap,gap)<=100 then
-                pistol.to_controller=mathlib:MakeRelativeTransform(actual,right:K2_GetComponentToWorld())
-            end
+        -- The UObjectHook gun only has its tracked transform during stereo.
+        -- Capture the muzzle in controller-local coordinates so engine ticks
+        -- can reconstruct the same ray from the current Sense pose.
+        local muzzle=utils.fname_from_string('Muzzle')
+        if not weapon:DoesSocketExist(muzzle) then return end
+        local tip=weapon:GetSocketTransform(muzzle,0)
+        local barrel=utils.fname_from_string('DP_barrel')
+        local start=weapon:DoesSocketExist(barrel) and weapon:GetSocketTransform(barrel,0).Translation
+        if not start then
+            local forward=mathlib:GetForwardVector(tip.Rotation)
+            start=vector_sub(tip.Translation,scale(forward,30))
         end
+        local reference=right:K2_GetComponentToWorld()
+        aim.set_sample(player,weapon,
+            mathlib:InverseTransformLocation(reference,start),
+            mathlib:InverseTransformLocation(reference,tip.Translation))
     end)
+    if not ok then warn(err) end
+end)
+
+utils.registerPostCalculateStereoViewCallback(function(_,view_index,world_to_meters)
+    if (view_index+1)%2~=0 or not uevr.params.vr.is_using_controllers() then return end
+    local ok,err=pcall(observe_support,world_to_meters)
     if not ok then warn(err) end
 end)
 
@@ -989,13 +1113,22 @@ utils.setInterval(350,function()
 end)
 
 utils.registerPostEngineTickCallback(function(_,delta)
+    if support_sample then support_sample.age=support_sample.age+math.max(delta or 0,0) end
     if not hands.exists() or not valid(source) or not valid(player) or mathlib == nil then
+        aim.clear_sample()
         pcall(release_left)
+        pcall(restore_reload_effects)
         return
     end
     local ok,err = pcall(function()
         local mode,reason = classify_action()
         local mode_changed=mode~=native_mode
+        local reload_tracking=mode=='reload' and attached_weapon==weapon and valid(weapon)
+            and weapon:IsVisible() and not weapon.bHiddenInGame and valid(left_pose.mesh)
+            and uevr.params.vr.is_using_controllers() and valid(controllers.getController(0,true))
+        if not reload_tracking then
+            restore_reload_effects()
+        end
         local walkie_changed=tracked_walkie and valid(tracked_walkie.component) and
             (tracked_walkie.component:GetAttachParent()~=tracked_walkie.parent
             or tracked_walkie.component:GetAttachSocketName()~=tracked_walkie.socket
@@ -1009,18 +1142,18 @@ utils.registerPostEngineTickCallback(function(_,delta)
             stop_walkie_tracking()
         end
         if attached_weapon and attached_weapon~=weapon then
+            aim.clear_sample()
             -- When changing from pistol to walkie (or between guns), release
             -- the previous grip before mounting the new object and its hand.
             restore_right_free()
             release_left()
         end
         if mode=='native' and mode_changed then
+            aim.clear_sample()
             restore_right_free()
             release_left()
-            restore_effects(hand_effects)
             if pistol then
-                restore_effects(pistol.effects)
-                pistol.near_time,pistol.far_time,pistol.supporting=0,0,false
+                pistol.near_time,pistol.supporting=0,false
             end
         end
         update_action_visibility(mode,reason)
@@ -1033,6 +1166,7 @@ utils.registerPostEngineTickCallback(function(_,delta)
             return
         end
         local weapon_ready=valid(weapon) and weapon:IsVisible() and not weapon.bHiddenInGame
+        if not weapon_ready then aim.clear_sample() end
         local is_walkie=weapon_ready and weapon==walkie
         if weapon_ready and attached_weapon~=weapon and not (right_recovery and right_recovery.show_free) then
             -- Hide the old/free hand until the new prop's animated grip is ready.
@@ -1055,7 +1189,7 @@ utils.registerPostEngineTickCallback(function(_,delta)
                         animation.resetAnimation('right_arms','right_trigger_weapon',false)
                     end
                     if not is_walkie then
-                        local ok,err=pcall(setup_pistol,cached.palm)
+                        local ok,err=pcall(setup_pistol)
                         if not ok then warn(err) end
                     end
                     uevr.params.functions.log_info('[Crisol hand pose] Restored cached grip')
@@ -1101,7 +1235,7 @@ utils.registerPostEngineTickCallback(function(_,delta)
                 grip_cache[key]=relative
                 grip_pose_cache[key]={bones=bones,animation=finger_animation,palm=palm,relative=relative}
                 if not is_walkie then
-                    local ok,err=pcall(setup_pistol,palm)
+                    local ok,err=pcall(setup_pistol)
                     if not ok then warn(err) end
                 end
                 uevr.params.functions.log_info(is_walkie and '[Crisol hands] Right hand attached to walkie'
@@ -1130,16 +1264,11 @@ utils.registerPostEngineTickCallback(function(_,delta)
             restore_right_free()
         end
         if pistol and (not weapon_ready or pistol.mesh~=weapon) then
-            restore_effects(pistol.effects)
             pistol=nil
         end
         local pose=update_left_mount(mode,weapon_ready and not is_walkie,delta or 0)
         update_left_animation(delta or 0,pose)
-        if not left_pose.effects_checked or mode_changed then
-            mount_hand_effects()
-            left_pose.effects_checked=true
-        end
-        sync_pistol_effects(mode=='reload')
+        if reload_tracking then discover_reload_effects(delta) end
         if right_recovery then
             local ready=weapon_ready and attached_weapon==weapon
                 and (not is_walkie or (tracked_walkie and tracked_walkie.component==weapon))
@@ -1159,9 +1288,18 @@ utils.registerPostEngineTickCallback(function(_,delta)
                 right_recovery.ready=ready
             end
         end
+        if attached_weapon==nil and right_free and right_free.grip and mesh:IsVisible() then
+            local controller=controllers.getController(1,true)
+            if valid(controller) and mesh:GetAttachParent()==controller then
+                update_fingers(mesh,right_free.grip,input.right_grip and 1 or 0.18,delta or 0)
+                update_fingers(mesh,right_free.trigger,math.max(input.right_trigger_amount,0.12),delta or 0)
+                update_fingers(mesh,right_free.thumb,input.right_grip and 0.36 or 0.14,delta or 0)
+            end
+        end
     end)
     if not ok then
         warn(err)
+        pcall(restore_reload_effects)
         pcall(release_left)
         pcall(restore_right_free,true)
         pcall(stop_walkie_tracking)
@@ -1182,8 +1320,7 @@ local function restore_attachments()
     pcall(release_left)
     pcall(restore_right_free,true)
     pcall(stop_walkie_tracking)
-    pcall(restore_effects,hand_effects)
-    if pistol then pcall(restore_effects,pistol.effects) end
+    pcall(restore_reload_effects)
     for component,original in pairs(magazine_original) do
         pcall(function()
             if valid(component) then component:K2_SetRelativeLocation(original,false,hit,false) end
@@ -1192,6 +1329,7 @@ local function restore_attachments()
 end
 
 function M.reset()
+    aim.clear_sample()
     restore_attachments()
     pcall(function()
         if not valid(source) then return end
@@ -1208,7 +1346,8 @@ function M.reset()
     end
     weapon,walkie,attached_weapon,tracked_walkie,source,player,native_anim=nil,nil,nil,nil,nil,nil,nil
     native_mode,right_recovery=nil,nil
-    pistol,hand_effects,magazine_original=nil,{},{}
+    support_sample=nil
+    pistol,reload_effects,reload_effects_delay,magazine_original=nil,{},0,{}
     left_pose={}
     right_free=nil
     grip_cache,grip_pose_cache,projection_original={},{},{}
@@ -1217,7 +1356,7 @@ function M.reset()
     weapon_bone,left_wrist,no_socket=nil,nil,nil
     physical_left,physical_right,physical_left_rotation,physical_right_rotation=nil,nil,nil,nil
     touch_handles,errors={},{}
-    input={grip=0,left_trigger=0,right_trigger=false}
+    input={grip=0,left_trigger=0,right_grip=false,right_trigger=false,right_trigger_amount=0}
 end
 uevr.params.sdk.callbacks.on_script_reset(M.reset)
 utils.registerPreLevelChangeCallback(M.reset,10)

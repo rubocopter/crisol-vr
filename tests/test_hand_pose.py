@@ -9,7 +9,10 @@ SCRIPT = Path(__file__).resolve().parents[1] / "profile/scripts/libs/crisol_hand
 
 ENGINE = r'''
 callbacks={}; scans={}; warnings={}; classes={}; actors={}; holding=false
-function vec(x,y,z) return {X=x or 0,Y=y or 0,Z=z or 0} end
+function vec(x,y,z)
+    if type(x)=='table' then return {X=x.X,Y=x.Y,Z=x.Z} end
+    return {X=x or 0,Y=y or 0,Z=z or 0}
+end
 function tr(x,y,z,yaw) return {Translation=vec(x,y,z),Rotation={Yaw=yaw or 0},Scale3D=vec(1,1,1)} end
 function rotate(p,yaw)
     local a=math.rad(yaw or 0)
@@ -51,10 +54,13 @@ function component(name,owner,x)
     function c:K2_GetComponentToWorld() return self.world end
     function c:K2_GetComponentLocation() return self.world.Translation end
     function c:K2_SetWorldTransform(t) self.world=t; self.world_writes=(self.world_writes or 0)+1 end
+    function c:SetAbsolute(location,rotation,scale)
+        self.bAbsoluteLocation=location; self.bAbsoluteRotation=rotation; self.bAbsoluteScale=scale
+    end
     function c:GetBoneTransformByName(n) return self.bones[n:to_string()] or tr() end
     function c:SetBoneTransformByName(n,t) self.bones[n:to_string()]=t end
     function c:GetSocketTransform(n) return self.bones[n:to_string()] or self.world end
-    function c:DoesSocketExist() return false end
+    function c:DoesSocketExist(n) return self.sockets and self.sockets[n:to_string()] or false end
     function c:GetAnimInstance() return anim end
     return c
 end
@@ -92,14 +98,16 @@ lc=component('LC',nil,0); rc=component('RC',nil,100)
 left.parent=lc; right.parent=rc
 physical_left=vec(0,1,0); physical_right=vec(1,1,0); using_controllers=true
 physical_left_rotation={x=0,y=0,z=0,w=1}; physical_right_rotation={x=0,y=0,z=0,w=1}
-active_xinput=0; XINPUT_GAMEPAD_LEFT_SHOULDER=0x100
+active_xinput=0; XINPUT_GAMEPAD_LEFT_SHOULDER=0x100; XINPUT_GAMEPAD_RIGHT_SHOULDER=0x200
     utils={
     isButtonPressed=function(s,mask) return (s.Gamepad.wButtons & mask)~=0 end,
     getValid=function(o) if o and not o.invalid then return o end end,
     vector=vec, rotator=function() return {} end, fname_from_string=fname,
     setInterval=function(ms,fn) callbacks.interval=fn end,
     registerPostEngineTickCallback=function(fn) callbacks.tick=fn end,
-    registerPostCalculateStereoViewCallback=function(fn) callbacks.stereo=fn end,
+    registerPostCalculateStereoViewCallback=function(fn)
+        if callbacks.stereo then callbacks.support=fn else callbacks.stereo=fn end
+    end,
     registerOnInputGetStateCallback=function(fn) callbacks.input=fn end,
     registerPreLevelChangeCallback=function(fn) callbacks.level=fn end,
     get_class=function(s) return s end,
@@ -132,6 +140,9 @@ mathlib={
     ComposeTransforms=function(_,a,b) return compose(a,b) end,
     TransformRotation=function(_,a,r) return {Yaw=(a.Rotation.Yaw or 0)+(r.Yaw or 0)} end,
     TransformLocation=function(_,a,p) return compose(tr(p.X,p.Y,p.Z),a).Translation end,
+    InverseTransformLocation=function(_,a,p)
+        return compose(tr(p.X,p.Y,p.Z),inverse(a)).Translation
+    end,
 }
 uevr={api={get_local_pawn=function() return pawn end},params={
     vr={is_using_controllers=function() return using_controllers end,
@@ -151,6 +162,10 @@ package.preload['libs/uevr_utils']=function() return utils end
 package.preload['libs/hands']=function() return hands end
 package.preload['libs/controllers']=function() return controllers end
 package.preload['libs/animation']=function() return animation end
+package.preload['libs/crisol_aim']=function() return {
+    set_sample=function(p,w,b,m) last_aim_sample={pawn=p,weapon=w,barrel=b,muzzle=m} end,
+    clear_sample=function() last_aim_sample=nil end,
+} end
 
 -- Locate lexical state without adding test APIs to the shipped Lua.
 function slot(name)
@@ -171,7 +186,22 @@ function slot(name)
 end
 function put(name,value) local f,i=slot(name); debug.setupvalue(f,i,value) end
 function read(name) local f,i=slot(name); local _,v=debug.getupvalue(f,i); return v end
-function tick(n,dt) for i=1,n or 1 do callbacks.tick(nil,dt or 0.05) end end
+function render_support()
+    local equipped=read('weapon')
+    if not equipped then return end
+    local old_left,old_right,old_gun=lc.world,rc.world,equipped.world
+    lc.world=tr(physical_left.X*100,physical_left.Y*100,physical_left.Z*100,rendered_left_yaw)
+    rc.world=tr(physical_right.X*100,physical_right.Y*100,physical_right.Z*100,rendered_right_yaw)
+    equipped.world=rc.world
+    callbacks.support(nil,1,100)
+    lc.world,rc.world,equipped.world=old_left,old_right,old_gun
+end
+function tick(n,dt)
+    for i=1,n or 1 do
+        if callbacks.support and not skip_support_render then render_support() end
+        callbacks.tick(nil,dt or 0.05)
+    end
+end
 function clean() assert(#warnings==0,table.concat(warnings,'\n')) end
 function armed(cls)
     gun_actor,gun=actor(cls or 'CRWDivinePistolNew_BP_C',pawn)
@@ -192,8 +222,8 @@ def lua():
         put('source',source); put('player',pawn); put('mathlib',mathlib)
         put('left_wrist',fname('l_wrist_jnt')); put('weapon_bone',fname('r_weapon'))
         put('no_socket',fname('None')); put('hit',{})
-        put('right_free',{transform=tr(),bones={}})
-        put('left_pose',{mesh=left,free=tr(),wrist_inverse=tr(),effects_checked=true,
+        put('right_free',{transform=tr(),walkie_transform=tr(),bones={}})
+        put('left_pose',{mesh=left,free=tr(),wrist_inverse=tr(),
             original_bones={{name=fname('l_wrist_jnt'),transform=tr()},
                 {name=fname('l_index_01_jnt'),transform=tr(2)}},
             grip={alpha=0.18,joints={}},trigger={alpha=0.12,joints={}},thumb={alpha=0.14,joints={}}})
@@ -203,6 +233,61 @@ def lua():
 
 def test_fallback_selects_on_first_callback(lua):
     lua.execute("a,m=actor('CRWDivinePistolNew_BP_C',pawn); callbacks.interval(); assert(read('weapon')==m); clean()")
+
+
+@pytest.mark.parametrize("swapped", [False, True])
+def test_free_right_fingers_follow_physical_grip_and_trigger(lua, swapped):
+    lua.globals().swapped = swapped
+    lua.execute(r'''
+        local free=read('right_free')
+        local function group(name)
+            return {alpha=0,joints={{bone=fname(name),open={Yaw=0},closed={Yaw=90}}}}
+        end
+        free.mesh=right
+        free.grip=group('r_middle_01_jnt'); free.trigger=group('r_index_01_jnt')
+        free.thumb=group('r_thumb_01_jnt')
+        mathlib.RLerp=function(_,a,b,t) return {Yaw=a.Yaw+(b.Yaw-a.Yaw)*t} end
+        animation.setBoneSpaceLocalRotator=function(mesh,bone,rotation)
+            mesh.bones[bone:to_string()]=tr(0,0,0,rotation.Yaw)
+        end
+        uevr.params.vr.get_mod_value=function(_,key)
+            assert(key=='VR_SwapControllerInputs'); return tostring(swapped)
+        end
+        local keys={Gamepad={wButtons=swapped and 0x0100 or 0x0200,
+            bLeftTrigger=swapped and 255 or 0,bRightTrigger=swapped and 0 or 255}}
+        callbacks.input(nil,0,keys); tick(1,0.1)
+        near(right.bones.r_index_01_jnt.Rotation.Yaw,90)
+        near(right.bones.r_middle_01_jnt.Rotation.Yaw,90)
+        assert(left.bones.r_index_01_jnt==nil)
+        keys.Gamepad.wButtons=0; keys.Gamepad.bRightTrigger=0; keys.Gamepad.bLeftTrigger=0
+        callbacks.input(nil,0,keys); tick(1,0.1)
+        assert(right.bones.r_index_01_jnt.Rotation.Yaw<30)
+        assert(right.bones.r_middle_01_jnt.Rotation.Yaw<30)
+        clean()
+    ''')
+
+
+def test_free_right_alignment_inverts_palm_frame_and_centers_it_on_controller(lua):
+    lua.execute(r'''
+        local align
+        for i=1,100 do
+            local name,value=debug.getupvalue(pose.setup,i)
+            if name=='right_palm_transform' then align=value; break end
+        end
+        -- Mesh fingers point along +Y, with the palm elevated and offset.
+        right.bones.r_wrist_jnt=tr(4,8,3)
+        right.bones.r_middle_01_jnt=tr(4,14,3)
+        right.bones.r_wrist_up_jnt=tr(4,8,5)
+        mathlib.MakeRotFromXZ=function(_,x,z)
+            near(x.X,0); near(x.Y,1); near(z.Z,1); return {Yaw=90}
+        end
+        local correction=align(right)
+        local tip=compose(right.bones.r_middle_01_jnt,correction).Translation
+        local wrist=compose(right.bones.r_wrist_jnt,correction).Translation
+        near(tip.X,3); near(tip.Y,0); near(tip.Z,0)
+        near(wrist.X,-3); near(wrist.Y,0); near(wrist.Z,0)
+        clean()
+    ''')
 
 
 def test_hidden_child_does_not_block_equipped_fallback(lua):
@@ -249,21 +334,50 @@ def test_cached_fallback_is_revalidated_and_replaced(lua, change):
     ''')
 
 
-def test_physical_contact_latches_native_fingers_and_separation_releases(lua):
+def test_contact_latches_native_fingers_and_separation_releases(lua):
     lua.execute(r'''
-        armed(); physical_right=vec(0.07,1,0) -- 7 cm, cached world controllers remain 100 cm apart
+        armed(); physical_right=vec(0.04,1,0)
         source.bones.l_wrist_jnt=tr(5); source.bones.l_index_01_jnt=tr(8)
         tick(2); assert(left.parent==lc)
         tick(2); assert(left.parent==gun)
         assert(left.bones.l_index_01_jnt.Translation.X==3)
-        physical_right=vec(0.12,1,0); tick(10); assert(left.parent==gun)
-        physical_right=vec(0.5,1,0); tick(9); assert(left.parent==lc)
+        physical_right=vec(0.085,1,0); tick(10); assert(left.parent==gun)
+        physical_right=vec(0.5,1,0); tick(); assert(left.parent==lc)
         assert(left.bones.l_index_01_jnt.Translation.X==2); clean()
     ''')
 
 
 def test_stale_near_world_controllers_cannot_attach_distant_physical_hands(lua):
     lua.execute("armed(); rc.world=tr(0); tick(20); assert(left.parent==lc); clean()")
+
+
+def test_support_requires_contact_with_the_rendered_weapon_and_releases_at_once(lua):
+    lua.execute(r'''
+        armed()
+        -- Native support wrist lies along the fore-end, away from the right grip.
+        source.bones.l_wrist_jnt=tr(20)
+        source.bones.l_middle_01_jnt=tr(24)
+        physical_right=vec(0.06,1,0)
+        tick(10); assert(left.parent==lc, 'Close controllers are not enough to touch the actual support point')
+        physical_left=vec(0.28,1,0)
+        tick(4); assert(left.parent==gun, 'Touching the fore-end must work even when grip origins are apart')
+        physical_left=vec(0.45,1,0)
+        tick(1,1/90); assert(left.parent==lc, 'Separating past the release distance must release in one tick')
+        clean()
+    ''')
+
+
+def test_smoothed_contact_cannot_keep_a_separated_hand_mounted(lua):
+    lua.execute(r'''
+        armed(); physical_right=vec(0.05,1,0); tick(4)
+        assert(left.parent==gun)
+        skip_support_render=true
+        physical_left=vec(-0.25,1,0)
+        tick(1,1/90); assert(left.parent==lc)
+        physical_left=vec(0,1,0); render_support()
+        tick(6,1/90); assert(left.parent==lc, 'One stereo sample cannot be reused to latch')
+        clean()
+    ''')
 
 
 def test_inactive_controllers_cannot_latch(lua):
@@ -277,6 +391,110 @@ def test_reload_releases_support_and_requires_new_contact(lua):
         anim.bIsReloading=true; tick(); assert(read('left_pose').support_weapon==nil)
         anim.bIsReloading=false; physical_right=vec(1,1,0); rc.world=tr(100)
         tick(10); assert(left.parent==lc); clean()
+    ''')
+
+
+def test_stereo_capture_converts_weapon_barrel_into_controller_local_coordinates(lua):
+    lua.execute(r'''
+        armed()
+        gun.sockets={Muzzle=true,DP_barrel=true}
+        gun.bones.Muzzle=tr(130,25)
+        gun.bones.DP_barrel=tr(120,25)
+        rc.world=tr(100,5,0,90)
+        callbacks.stereo(nil,0)
+        assert(not last_aim_sample, 'Only final stereo view captures the tracked mesh')
+        callbacks.stereo(nil,1)
+        assert(last_aim_sample and last_aim_sample.weapon==gun)
+        near(last_aim_sample.barrel.X,20)
+        near(last_aim_sample.barrel.Y,-20)
+        near(last_aim_sample.muzzle.X,20)
+        near(last_aim_sample.muzzle.Y,-30)
+        anim.bIsReloading=true; tick(); callbacks.stereo(nil,1)
+        assert(last_aim_sample and last_aim_sample.weapon==gun,
+            'Reloading must not switch the reticle away from the gun')
+        put('weapon',nil); tick()
+        assert(not last_aim_sample,'Unequipping a gun must clear the last sampled barrel')
+        clean()
+    ''')
+
+
+def test_reload_blood_tracks_left_wrist_and_restores_original_mounts(lua):
+    lua.execute(r'''
+        armed()
+        source.sockets={VAT_reload_socket=true}
+        source.bones.VAT_reload_socket=tr(50)
+        source.bones.l_wrist_jnt=tr(40)
+        blood=component('DamageState_Start',pawn)
+        blood.parent=source; blood.socket=fname('VAT_reload_socket')
+        blood.RelativeLocation=vec(2)
+        pawn.K2_GetComponentsByClass=function(_,kind)
+            if kind=='Class /Script/Niagara.NiagaraComponent' then return {blood} end
+            return {}
+        end
+        loop=component('GetLoopReloadComponent',gun_actor)
+        loop.parent=source; loop.socket=fname('VAT_reload_socket')
+        loop.RelativeLocation=vec(3)
+        loop:SetAbsolute(false,false,true)
+        loop.FirstPersonPrimitiveType=2
+        function loop:IsActive() return true end
+        function loop:ResetSystem() self.resets=(self.resets or 0)+1 end
+        tick()
+        assert(blood.parent==source and loop.parent==source)
+        -- The Niagara component can be assigned after the gun is equipped.
+        gun_actor.GetLoopReloadComponent=function() return loop end
+        anim.bIsReloading=true
+        -- The poseable mesh may report its previous world-space bone at this phase.
+        left.bones.l_wrist_jnt=tr(-500)
+        tick(); gun.world=tr(360); callbacks.stereo(nil,1)
+        assert(blood.parent==left and blood.socket:to_string()=='l_wrist_jnt')
+        assert(loop.parent==left and loop.socket:to_string()=='l_wrist_jnt')
+        assert(loop.bAbsoluteLocation and loop.bAbsoluteRotation and loop.bAbsoluteScale,
+            'The emitter must keep the tracked position when UEVR restores the native weapon')
+        assert(loop.FirstPersonPrimitiveType==0)
+        near(blood.world.Translation.X,412)
+        near(loop.world.Translation.X,413)
+        assert(loop.resets==1)
+        left.bones.l_wrist_jnt=tr(35); tick() -- Native pose during Niagara simulation.
+        near(loop.world.Translation.X,413)
+        gun.world=tr(410); callbacks.stereo(nil,1)
+        near(loop.world.Translation.X,463)
+        assert(loop.resets==1)
+        anim.bIsReloading=false; tick()
+        assert(loop.parent==source and loop.socket:to_string()=='VAT_reload_socket')
+        assert(not loop.bAbsoluteLocation and not loop.bAbsoluteRotation and loop.bAbsoluteScale)
+        assert(loop.FirstPersonPrimitiveType==2)
+        near(loop.relative.Translation.X,3)
+        assert(blood.parent==source)
+        assert(blood.socket:to_string()=='VAT_reload_socket')
+        near(blood.relative.Translation.X,2)
+        anim.bIsReloading=true; tick(); callbacks.stereo(nil,1)
+        assert(loop.parent==left and blood.parent==left)
+        lc.invalid=true; tick()
+        assert(loop.parent==source and blood.parent==source)
+        clean()
+    ''')
+
+
+def test_reload_finds_niagara_by_its_shipped_asset_and_ignores_other_effects(lua):
+    lua.execute(r'''
+        armed()
+        local splash=component('GeneratedNiagara',gun_actor,-500)
+        splash.Asset={get_fname=function() return fname('NS_PistolEndReloadSystem') end}
+        local unrelated=component('MuzzleFlash',gun_actor)
+        unrelated.Asset={get_fname=function() return fname('NS_PistolMuzzleFlash') end}
+        local components=gun_actor.K2_GetComponentsByClass
+        function gun_actor:K2_GetComponentsByClass(kind)
+            if kind=='Class /Script/Niagara.NiagaraComponent' then return {splash,unrelated} end
+            return components(self,kind)
+        end
+        anim.bIsReloading=true; tick()
+        gun.world=tr(300); callbacks.stereo(nil,1)
+        assert(splash.parent==left and unrelated.parent==nil)
+        near(splash.world.Translation.X,300)
+        anim.bIsReloading=false; tick()
+        assert(splash.parent==nil and not splash.bAbsoluteLocation)
+        near(splash.world.Translation.X,-500)
+        clean()
     ''')
 
 
@@ -455,11 +673,12 @@ def test_recognized_child_seeds_class_for_prompt_fallback(lua):
 
 def test_support_uses_native_anchor_before_vr_and_preserves_rotated_bones(lua):
     lua.execute(r'''
-        armed(); physical_right=vec(0.05,1,0)
+        armed(); physical_right=vec(-0.05,1,0)
         -- Native r_weapon and the rendered UObjectHook weapon occupy different
         -- spaces. Native frame: (10,20), yaw 90; VR frame: (600,700), yaw -60.
         source.bones.r_weapon=tr(10,20,0,90); gun.world=tr(600,700,0,-60)
         source.bones.l_wrist_jnt=tr(10,25,0,120)
+        source.bones.l_middle_01_jnt=tr(10,25,0,120)
         source.bones.l_index_01_jnt=tr(7,25,0,150)
         read('left_pose').wrist_inverse=inverse(tr(1,2,0,20))
         tick(4); assert(left.parent==gun,'support rejected by mixed native/VR anchor')
@@ -498,7 +717,7 @@ def test_support_transition_clears_latch_and_requires_full_dwell(lua, transition
     lua.execute(r'''
         tick(); local state=read('pistol')
         assert(not state or not state.supporting,'stale support latch')
-        assert(not state or (state.near_time==0 and state.far_time==0))
+        assert(not state or state.near_time==0)
         anim.bIsReloading=false; pawn.knife=false; gun.visible=true
         put('weapon',gun); put('attached_weapon',gun); right.parent=gun
         put('pistol',state or {mesh=gun,effects={}})
@@ -598,24 +817,24 @@ def test_partial_support_bone_write_restores_every_original_even_if_detach_fails
     ''')
 
 
-def test_contact_defaults_allow_separated_grip_origins_without_grip_button(lua):
+def test_contact_allows_separated_grip_origins_without_grip_button(lua):
     lua.execute(r'''
-        armed(); physical_right=vec(0.13,1,0) -- grip origins need not coincide to touch hands
+        armed(); physical_right=vec(0.13,1,0)
+        source.bones.l_wrist_jnt=tr(-12); source.bones.l_middle_01_jnt=tr(-14)
         assert(read('input').grip==0); tick(4); assert(left.parent==gun)
         physical_right=vec(0.4,1,0); tick(9); assert(left.parent==lc); clean()
     ''')
 
 
-def test_contact_offsets_rotate_with_each_grip_pose(lua):
+def test_contact_rotates_with_the_rendered_weapon(lua):
     lua.execute(r'''
         armed(); local cfg=pose.support_contact
         assert(cfg,'contact geometry must be configurable')
         cfg.acquire_cm=3; cfg.release_cm=8
         cfg.left_offset_m={x=0.05,y=0,z=0}; cfg.right_offset_m={x=-0.05,y=0,z=0}
-        -- 90 degrees around tracking Z: inward offsets close a 10 cm Y gap.
-        physical_left_rotation={x=0,y=0,z=math.sqrt(0.5),w=math.sqrt(0.5)}
-        physical_right_rotation=physical_left_rotation
-        physical_right=vec(0,1.10,0); tick(4); assert(left.parent==gun)
-        physical_left_rotation={x=0,y=0,z=0,w=1}; physical_right_rotation=physical_left_rotation
-        tick(9); assert(left.parent==lc); clean()
+        source.bones.l_wrist_jnt=tr(8); source.bones.l_middle_01_jnt=tr(12)
+        physical_right=vec(0,1.10,0); rendered_right_yaw=-90
+        tick(4); assert(left.parent==gun)
+        rendered_right_yaw=0
+        tick(); assert(left.parent==lc); clean()
     ''')

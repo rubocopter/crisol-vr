@@ -4,13 +4,13 @@
 
 # CRISOL — THEATER OF IDOLS VR
 
-**v1.0.1 · Unofficial UEVR profile · Tracked weapons and hands · OpenXR controls**
+**v1.0.2 · Unofficial UEVR profile · Tracked weapons and hands · OpenXR controls**
 
 [![Release](https://img.shields.io/github/v/release/rubocopter/crisol-vr?label=Download&color=cc6f60)](https://github.com/rubocopter/crisol-vr/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/Code-GPL--3.0-blue)](LICENSE)
 [![UEVR](https://img.shields.io/badge/Powered%20by-UEVR-282828)](https://github.com/praydog/UEVR)
 
-**[Download v1.0.1](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1)** · **[Leer en español](docs/README.es.md)**
+**[Download v1.0.2](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.2)** · **[Leer en español](docs/README.es.md)**
 
 <a href="https://ko-fi.com/onitaku"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support development on Ko-fi"></a>
 
@@ -18,7 +18,7 @@
 
 Play **Crisol: Theater of Idols** in VR with motion-controlled weapon aiming, the game's own hands, and a headset-following interface. The author tested **PS VR2 Sense with SteamVR and UEVR OpenXR** successfully, with acceptable performance, and published the working Sense layout in SteamVR community bindings.
 
-See the [v1.0.1 release notes](docs/RELEASE_NOTES_v1.0.1.md) for changes and downloads.
+See the [v1.0.2 release notes](docs/RELEASE_NOTES_v1.0.2.md) for changes and downloads.
 
 ## Gameplay preview
 
@@ -33,15 +33,15 @@ See the [v1.0.1 release notes](docs/RELEASE_NOTES_v1.0.1.md) for changes and dow
 - **6DoF weapon aiming** — Aim the pistol with your right motion controller independently of head movement.
 - **Native in-game hands** — Experimental finger poses, tracked weapon grip and proximity-based two-hand support.
 - **Contextual animations** — Original hand animations for knife use, blood absorption, healing and traversal; tracked right-hand attachment for the walkie-talkie.
-- **Head-controlled view** — Look around with the headset in menus, puzzles and object inspection while retaining controller-directed aiming during gameplay.
+- **Independent camera and weapon aim** — Look with the headset and turn with the stick while aiming with the right controller. Menus, puzzles and object inspection use the headset view.
 - **VR interface** — Health and menus follow your view; the reticle and interaction prompts follow your weapon aim.
 - **Head-oriented movement** and **native PS VR2 Sense controls through SteamVR**, keeping UEVR on OpenXR.
 
 ## Installation
 
-You need a PC copy of **Crisol: Theater of Idols**, [UEVR by praydog](https://github.com/praydog/UEVR/releases), and an OpenXR-compatible PC VR setup with motion controllers. **PS VR2 Sense with SteamVR** is the tested setup.
+You need a PC copy of **Crisol: Theater of Idols**, the **latest UEVR nightly**, and an OpenXR-compatible PC VR setup with motion controllers. The author tested nightly 01143 (`4ee5c6b6`) with PS VR2 Sense and SteamVR. [Download the latest UEVR nightly](https://github.com/praydog/UEVR-nightly/releases/latest).
 
-1. Download **`CRToiPrototype-Win64-Shipping.zip`** from the [v1.0.1 release assets](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1). Choose the profile ZIP under **Assets**.
+1. Download **`CRToiPrototype-Win64-Shipping.zip`** from the [v1.0.2 release assets](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.2).
 2. In UEVR, choose **Import Config** and select the ZIP **without extracting it**. Back up any existing custom profile first.
 3. Start your headset's OpenXR runtime (**SteamVR** for PS VR2), then launch Crisol. Windowed or borderless mode makes switching to UEVR easier.
 4. Select **`CRToiPrototype-Win64-Shipping.exe`** in UEVR, choose **OpenXR**, and click **Inject**.
@@ -50,7 +50,7 @@ You need a PC copy of **Crisol: Theater of Idols**, [UEVR by praydog](https://gi
 
 **Importing the UEVR ZIP does not select a SteamVR controller layout.** Keep UEVR on **OpenXR** when using the native Sense layout; no Oculus conversion is needed. If the community layout is unavailable, use the [shipped native-binding guide](profile/steamvr/README.txt). The release also supplies the native Sense JSON, `Install-SenseBindings.ps1`, `Sense-OpenXR-README.txt`, and `SHA256SUMS.txt` for local setup and download verification.
 
-When upgrading from an older profile, close Crisol and UEVR, back up and rename `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, then import v1.0.1. This avoids retaining old scripts. Restart the game and UEVR after changing bindings; restart SteamVR too if you changed its controller layout. A Lua reload alone does not recreate OpenXR bindings.
+When upgrading, close Crisol and UEVR, back up and rename `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, then import v1.0.2. Restart SteamVR if you changed its controller layout so OpenXR recreates the bindings.
 
 ### PS VR2 Sense controls
 
@@ -93,22 +93,22 @@ These values are already included. The scripts switch aiming mode between head v
 
 | Setting | Profile value |
 | --- | --- |
-| `VR_NativeStereoFix` | `false` — avoids the observed black-right-eye / weapon-tracking issue |
+| `VR_NativeStereoFix` | `true` — stops individual pixels from flickering in multiple colors on the tested setup |
 | `VR_RenderingMethod` | `0` |
-| `VR_AimMethod` | `1` at startup/in menus; `2` during gameplay |
-| `VR_AimModifyPlayerControlRotation` | `false` in menus; `true` during gameplay |
+| `VR_AimMethod` | `1` at startup and in menus, `0` with tracked weapon aim, `2` for controller fallback |
+| `VR_AimModifyPlayerControlRotation` | `false` with tracked weapon aim and in menus, `true` for controller fallback |
 | `VR_MovementOrientation` | `1` — head-oriented movement |
 | `UI_FollowView` | `true` |
 | `VR_MotionControlsInactivityTimer` | `86400` — retains tracked weapon control during idle input |
 
 ## Known issues
 
-- **DLSS artifacts:** Quality and Balanced have caused colored flashing surfaces in VR. Performance or DLAA worked better in the tested setup; adjust resolution and quality for your GPU.
-- **Experimental hands:** Finger/hand alignment, animation transitions and blood effects during reload or absorption can still glitch.
+- **Reload blood.** The effect can appear detached from the tracked left wrist.
+- **Graphics.** Native Stereo Fix is enabled for multicolored pixel flicker. For remaining flashes, see the Lumen and DLSS checks in the [troubleshooting guide](docs/TROUBLESHOOTING.md).
 - **OpenXR Toolkit conflict:** Its API layer previously caused crashes when loading a save on the development machine; removing the layer resolved that issue.
-- **Validation scope:** The latest pause-menu camera and pointer/impact-alignment corrections still need headset verification.
+- **Validation.** The author verified the camera, reticle, firing alignment and two-handed support with PS VR2 Sense. Other headsets still need gameplay checks.
 
-Report problems through [GitHub Issues](https://github.com/rubocopter/crisol-vr/issues), including your headset/controllers, UEVR/SteamVR versions, selected layout and what happened. Advanced Sense setup and input diagnostics are in the [binding guide](profile/steamvr/README.txt).
+For audio loss or a crash when entering gameplay, compare against a clean UEVR injection and isolate the audio route using the [troubleshooting guide](docs/TROUBLESHOOTING.md). Report results through [GitHub Issues](https://github.com/rubocopter/crisol-vr/issues). Advanced Sense setup and input diagnostics are in the [binding guide](profile/steamvr/README.txt).
 
 To remove the profile, close the game and UEVR, then restore your backed-up UEVR profile or remove this game's profile folder. If needed, choose your previous SteamVR controller layout separately.
 

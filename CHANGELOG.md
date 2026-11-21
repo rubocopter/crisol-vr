@@ -1,5 +1,16 @@
 # Changelog
 
+## [v1.0.2] - 2026-11-21
+
+- Follow the tracked barrel with the reticle and use the same target for the game's firing aim.
+- Keep headset and stick turning independent of weapon rotation.
+- Engage two-handed support at the weapon's support point and release promptly when the left hand moves away.
+- Align the empty right hand to the controller using the palm's skeletal axes.
+- Animate empty right-hand fingers from grip and trigger input, including when controller inputs are swapped. Keep the game's mounted weapon and walkie poses.
+- Enable **Native Stereo Fix** by default. It stopped individual pixels from flickering in multiple colors on the author's PS VR2 setup.
+- Recommend the latest UEVR nightly with OpenXR. The author verified the camera, aim and two-handed support with PS VR2 Sense.
+- Known issue: reload blood effects can still appear detached from the left wrist.
+
 ## [v1.0.1] - 2026-11-19
 
 - Correct the Oculus Touch thumbrest modifiers. Touching the left movement stick previously activated the right-thumbrest action and could consume locomotion with UEVR's right-touch D-pad mode.

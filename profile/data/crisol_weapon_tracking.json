@@ -83,21 +83,6 @@
     }
   },
   "CRWDivinePistolNew_BP_C": {
-    "LoopReloadComponent": {
-      "hand": 1,
-      "location_offset": {
-        "x": 11.970000267028809,
-        "y": 12.899999618530273,
-        "z": -4.420000076293945
-      },
-      "permanent": false,
-      "rotation_offset": {
-        "w": 1.0,
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0
-      }
-    },
     "Mesh": {
       "hand": 1,
       "location_offset": {

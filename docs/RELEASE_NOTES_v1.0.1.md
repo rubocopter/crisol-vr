@@ -38,12 +38,12 @@ near the headset. Move it away for ordinary walking. Details are in the
 ## Validation and remaining hardware checks
 
 **299 automated tests pass**, and all **43 shipped Lua scripts compile with
-Lua 5.4**. The bindings were compared with official UEVR 1.05 input handling.
+Lua 5.4**. The bindings were compared with official UEVR 1.05 input handling
+at source level. Use the author's [UEVR Nightly 01143 build](https://github.com/praydog/UEVR-nightly/releases/tag/nightly-01143-4ee5c6b6162dee2291fc75f9dfc57667f6d45a2d) for runtime testing.
 
-Quest 3 hardware validation remains pending. The author uses PS VR2, so
-community testing is needed to establish whether this correction resolves
-the reported Quest 3 movement failure on the affected setup. Other controller
-families also retain their hardware-testing limitations.
+A Quest 3 user confirmed movement with Nightly 01143 over Virtual Desktop
+and OpenXR. A crash when entering gameplay prevented further testing.
+Full Quest 3 gameplay and other controller families still need hardware checks.
 
 ## Downloads
 

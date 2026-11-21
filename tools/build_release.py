@@ -42,6 +42,7 @@ REQUIRED_FILES = {
     "scripts/libs/crisol_context.lua",
     "scripts/crisol_vr_ui.lua",
     "scripts/libs/crisol_hand_pose.lua",
+    "scripts/libs/crisol_aim.lua",
     "scripts/libs/uevr_utils.lua",
     "scripts/libs/controllers.lua",
     "scripts/libs/crisol_controller_input.lua",
@@ -263,7 +264,7 @@ def build() -> tuple[Path, str, int]:
         if "=" in line
     )
     expected = {
-        "VR_NativeStereoFix": "false",
+        "VR_NativeStereoFix": "true",
         "VR_RenderingMethod": "0",
         "VR_AimMethod": "1",
         "VR_AimModifyPlayerControlRotation": "false",

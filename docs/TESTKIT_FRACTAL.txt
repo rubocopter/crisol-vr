@@ -1,5 +1,5 @@
-CRISOL VR v1.0.0 - KIT PARA FRACTAL
-===================================
+CRISOL VR v1.0.2 - KIT PARA FRACTAL
+==================================
 
 Este kit usa UEVR OpenXR y contiene el perfil importable, el binding nativo
 Sense, las herramientas de instalacion y recogida de registros, y la guia
@@ -11,11 +11,12 @@ para copiar compilaciones desde Corsario.
 3. Conserva el binding Sense que ya has probado. Para otra instalacion,
    selecciona el layout de la comunidad o sigue la guia detallada inferior.
 4. Inicia SteamVR y Crisol, selecciona OpenXR en UEVR e inyecta.
-5. Sigue PRUEBA_OTRO_PC.txt, especialmente pausa y coincidencia mira/impacto.
+5. Sigue PRUEBA_OTRO_PC.txt para comprobar camara, mira, impacto y apoyo
+   a dos manos. La sangre de recarga puede verse separada de la mano.
 
-La entrega anterior y los bindings fueron probados por el autor en Fractal.
-Las correcciones de pausa y puntero de v1.0.0 se verifican localmente y
-requieren comprobarse tambien con el visor.
+El autor verifico la camara, la mira, el disparo y el apoyo a dos manos con
+PS VR2 Sense. Usa el ultimo nightly de UEVR. Native Stereo Fix se incluye
+activado porque evita el parpadeo de pixeles multicolor en ese equipo.
 
 Para recoger registros desde esta carpeta, en PowerShell normal:
   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Collect-FractalLogs.ps1

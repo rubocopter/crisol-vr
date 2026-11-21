@@ -2,7 +2,7 @@ NATIVE PS VR2 SENSE / STEAMVR / UEVR OPENXR
 ========================================
 
 Status: native layout selected on Fractal and working in headset per the user's
-2026-11-14 test report. Pause-camera behavior remains a separate code issue.
+2026-11-14 test report. Use the latest UEVR nightly with OpenXR for v1.0.2.
 Importing the UEVR ZIP does NOT select this SteamVR binding. Keep UEVR OpenXR.
 Use the separate test kit's tools/Install-SenseBindings.ps1 (Windows PowerShell
 5.1, no Python/admin/DevTools). The Python tool is for developer/offline checks.

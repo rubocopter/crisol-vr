@@ -4,15 +4,15 @@
 
 # CRISOL — THEATER OF IDOLS VR
 
-**v1.0.1 · Perfil UEVR no oficial · Armas y manos con seguimiento 6DoF · Controles OpenXR**
+**v1.0.2 · Perfil UEVR no oficial · Armas y manos con seguimiento 6DoF · Controles OpenXR**
 
-**[Descargar v1.0.1](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1)** · **[English](../README.md)** · **[Apoyar en Ko-fi](https://ko-fi.com/onitaku)**
+**[Descargar v1.0.2](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.2)** · **[English](../README.md)** · **[Apoyar en Ko-fi](https://ko-fi.com/onitaku)**
 
 </div>
 
 Juega a **Crisol: Theater of Idols** en VR con apuntado mediante mandos de movimiento, las manos originales del juego y una interfaz que sigue al visor. El autor ha probado con éxito **PS VR2 Sense con SteamVR y UEVR OpenXR**, con rendimiento aceptable, y ha publicado la asignación Sense utilizada en los bindings de la comunidad de SteamVR.
 
-Consulta las [notas de v1.0.1](RELEASE_NOTES_v1.0.1.md) en inglés para ver los cambios y las descargas.
+Consulta las [notas de v1.0.2](RELEASE_NOTES_v1.0.2.md) para ver los cambios y las descargas.
 
 ## Vídeo de gameplay
 
@@ -38,9 +38,9 @@ Consulta las [notas de v1.0.1](RELEASE_NOTES_v1.0.1.md) en inglés para ver los 
 
 ## Instalación
 
-Necesitas el juego para PC, [UEVR de praydog](https://github.com/praydog/UEVR/releases) y un equipo PC VR compatible con OpenXR y mandos de movimiento. La configuración probada es **PS VR2 Sense con SteamVR**.
+Necesitas el juego para PC, **el último nightly de UEVR** y un equipo PC VR compatible con OpenXR y mandos de movimiento. El autor probó la compilación nightly 01143 (`4ee5c6b6`) con PS VR2 Sense y SteamVR. [Descargar el último nightly de UEVR](https://github.com/praydog/UEVR-nightly/releases/latest).
 
-1. Descarga **`CRToiPrototype-Win64-Shipping.zip`** desde **Assets** en la [release v1.0.1](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.1).
+1. Descarga **`CRToiPrototype-Win64-Shipping.zip`** desde **Assets** en la [release v1.0.2](https://github.com/rubocopter/crisol-vr/releases/tag/v1.0.2).
 2. Abre UEVR, pulsa **Import Config** e importa el ZIP **sin descomprimirlo**. Guarda antes una copia de cualquier perfil personalizado que tengas.
 3. Inicia el runtime OpenXR de tu visor (**SteamVR** para PS VR2) y después Crisol. El modo ventana o sin bordes facilita alternar a UEVR.
 4. Selecciona **`CRToiPrototype-Win64-Shipping.exe`**, elige **OpenXR** y pulsa **Inject**.
@@ -49,7 +49,7 @@ Necesitas el juego para PC, [UEVR de praydog](https://github.com/praydog/UEVR/re
 
 **Importar el ZIP UEVR no selecciona una asignación de SteamVR.** Conserva **OpenXR** en UEVR con el layout Sense nativo; no necesitas conversión Oculus. Si no encuentras la asignación de la comunidad, sigue la [guía nativa incluida](../profile/steamvr/README.txt). La release también ofrece el JSON Sense, `Install-SenseBindings.ps1`, `Sense-OpenXR-README.txt` y `SHA256SUMS.txt` para la configuración local y la comprobación de descargas.
 
-Para actualizar desde un perfil anterior, cierra Crisol y UEVR, guarda una copia y renombra `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, e importa v1.0.1. Así evitas conservar scripts antiguos. Reinicia juego y UEVR tras modificar bindings; reinicia SteamVR también si cambiaste su layout. Recargar Lua no recrea las acciones OpenXR.
+Para actualizar, cierra Crisol y UEVR, guarda una copia y renombra `%APPDATA%\UnrealVRMod\CRToiPrototype-Win64-Shipping`, e importa v1.0.2. Si cambiaste el layout de SteamVR, reinícialo para que OpenXR vuelva a crear las asignaciones.
 
 ### Controles PS VR2 Sense
 
@@ -92,22 +92,22 @@ Los scripts alternan entre vista de cabeza en menús/inspección y apuntado con 
 
 | Ajuste | Valor del perfil |
 | --- | --- |
-| `VR_NativeStereoFix` | `false` — evita el ojo derecho negro y la pérdida de seguimiento observados |
+| `VR_NativeStereoFix` | `true` — evita el parpadeo de píxeles individuales en varios colores en el equipo probado |
 | `VR_RenderingMethod` | `0` |
-| `VR_AimMethod` | `1` al arrancar/en menús; `2` durante el juego |
-| `VR_AimModifyPlayerControlRotation` | `false` en menús; `true` durante el juego |
+| `VR_AimMethod` | `1` al arrancar y en menús, `0` con el arma en seguimiento y `2` cuando se usa el apuntado de respaldo del mando |
+| `VR_AimModifyPlayerControlRotation` | `false` con el arma en seguimiento y en menús, `true` con el apuntado de respaldo del mando |
 | `VR_MovementOrientation` | `1` — movimiento según la cabeza |
 | `UI_FollowView` | `true` |
 | `VR_MotionControlsInactivityTimer` | `86400` — conserva el seguimiento del arma aunque no pulses botones |
 
 ## Limitaciones conocidas
 
-- **Artefactos DLSS:** Calidad y Equilibrado han provocado parpadeos y superficies de colores en VR. Rendimiento o DLAA funcionaron mejor en el equipo probado; ajusta resolución y calidad a tu GPU.
-- **Manos experimentales:** Pueden fallar la alineación de dedos/manos, las transiciones de animación y los efectos de sangre al recargar o absorber.
+- **Sangre de recarga.** El efecto puede aparecer separado de la muñeca izquierda.
+- **Gráficos.** Native Stereo Fix viene activado para evitar el parpadeo de píxeles multicolor. Si quedan destellos, consulta las comprobaciones de Lumen y DLSS en la [guía de diagnóstico](TROUBLESHOOTING.md#diagnóstico-en-español).
 - **Conflicto con OpenXR Toolkit:** Su capa API provocó cierres al cargar partida en el equipo de desarrollo; retirarla resolvió ese problema.
-- **Alcance de las pruebas:** Falta comprobar con visor las nuevas correcciones de cámara en pausa y alineación del puntero con el impacto.
+- **Pruebas.** El autor comprobó la cámara, la mira, la alineación del impacto y el apoyo a dos manos con PS VR2 Sense. Quedan pendientes las pruebas de juego con otros visores.
 
-Comunica incidencias en [GitHub Issues](https://github.com/rubocopter/crisol-vr/issues) e indica visor/mandos, versiones de UEVR/SteamVR, layout seleccionado y resultado. La [guía de bindings](../profile/steamvr/README.txt) contiene la configuración avanzada y el diagnóstico Sense.
+Si se pierde el audio o el juego se cierra al cargar, sigue la [guía de diagnóstico](TROUBLESHOOTING.md#diagnóstico-en-español) y comparte el resultado en [GitHub Issues](https://github.com/rubocopter/crisol-vr/issues). La [guía de bindings](../profile/steamvr/README.txt) cubre la configuración avanzada de Sense.
 
 Para retirar el perfil, cierra juego y UEVR y restaura tu copia anterior o elimina la carpeta del perfil de este juego. Si procede, selecciona por separado tu layout anterior en SteamVR.
 

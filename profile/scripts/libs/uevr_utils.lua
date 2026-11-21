@@ -3475,7 +3475,10 @@ end
 function M.getLineTraceHitResult(originPosition, originDirection, collisionChannel, traceComplex, ignoreActors, minHitDistance, maxTraceDistance, includeFullDetails)
 	if originPosition ~= nil and originDirection ~= nil then
 		if maxTraceDistance == nil then maxTraceDistance = 8192.0 end
-		local endLocation = originPosition + (originDirection * maxTraceDistance)
+		-- Reflected FVector values may be StructObjects without Lua operators.
+		local endLocation = M.vector(originPosition.X + originDirection.X * maxTraceDistance,
+			originPosition.Y + originDirection.Y * maxTraceDistance,
+			originPosition.Z + originDirection.Z * maxTraceDistance)
 		local ignore_actors = ignoreActors or {}
 		if traceComplex == nil then traceComplex = false end
 		--if minHitDistance == nil then minHitDistance = 10 end

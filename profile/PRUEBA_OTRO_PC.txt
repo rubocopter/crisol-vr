@@ -1,5 +1,5 @@
-CRISOL VR 1.0.1 - PRUEBA DE COMPATIBILIDAD
-===========================================
+CRISOL VR 1.0.2 - PRUEBA EN OTRO PC
+==================================
 
 Instalacion
 -----------
@@ -10,25 +10,34 @@ Instalacion
    layout Sense que ya has configurado y probado. Para instalarlo en otro PC,
    consulta steamvr/README.txt y selecciona el layout de la comunidad.
 4. Arranca Crisol, selecciona OpenXR en UEVR e inyecta. La version del perfil
-   aparece en VERSION.txt. Reinicia juego y UEVR tras cambiar bindings.
+   aparece en VERSION.txt. Usa el ultimo nightly de UEVR y reinicia juego y
+   UEVR tras cambiar bindings. Native Stereo Fix ya viene activado.
 
 Cambios para comprobar en esta version
 -------------------------------------
+- MANO DERECHA VACIA: con la muneca neutra, mueve y gira el mando derecho.
+  Pulsa y suelta gatillo y agarre por separado. El indice sigue el gatillo
+  y los otros dedos se cierran con el agarre. Repite al guardar el arma o
+  soltar el walkie. Comprueba el mismo recorrido en Quest y en Sense.
 - PAUSA: abre el menu con Options y mueve el mando derecho con la cabeza
   quieta. La vista debe seguir estable. Mira alrededor con el visor y reanuda.
   El apuntado y la interaccion deben volver al mando derecho inmediatamente.
 - MIRA: apunta a una pared en reposo, dispara y compara el centro de la mira
   con el impacto a varias distancias y orientaciones de cabeza y mando.
-  Comprueba especialmente el desfase abajo/derecha comunicado.
+  Mueve el arma manteniendo la cabeza quieta: la mira debe seguir al arma, sin
+  quedarse clavada en el escenario. Comprueba el desfase abajo/derecha comunicado.
+- SANGRE EN RECARGA: recarga la pistola mientras mueves la mano izquierda.
+  El efecto puede verse flotando separado de la muneca. Indica en que fase
+  de la recarga ocurre y si se mueve con la mano.
 - MENU/INSPECCION: conserva la vista de cabeza en el menu principal,
   inspecciones y puzles. Antes de entrar y al salir, apunta con el mando.
 - MANOS: prueba el apoyo automatico, separacion de los mandos, recarga,
   cambio de arma y regreso desde animaciones contextuales.
 
-La entrega anterior fue probada por el autor en Fractal con PS VR2 Sense,
-SteamVR y OpenXR. Las nuevas correcciones de pausa y mira tienen pruebas
-locales de regresion. Su comprobacion final con el visor sigue pendiente.
-Conserva los ajustes de rendimiento de la prueba que funciono bien.
+El autor comprobo la camara, la mira, el impacto y el apoyo a dos manos con
+PS VR2 Sense, SteamVR OpenXR y UEVR nightly 01143. Native Stereo Fix evita
+el parpadeo de pixeles multicolor en ese equipo. La sangre de recarga sigue
+siendo una incidencia conocida.
 
 Compatibilidad de mandos (19/11/2026)
 ------------------------------------
@@ -42,6 +51,6 @@ Compatibilidad de mandos (19/11/2026)
   gesto, que utiliza los ejes de movimiento. Para aislar esa funcion durante
   un diagnostico, desactiva DPad Shifting y elige un metodo sin gesto (0).
 
-El fallo concreto comunicado en Quest 3 no esta reproducido con un visor.
-El paquete corrige una asignacion Touch erronea y amplia las comprobaciones
-locales de compatibilidad. La conexion y el runtime de ese usuario se desconocen.
+Un usuario de Quest 3 confirmo el movimiento con Virtual Desktop, OpenXR y
+nightly 01143. Un cierre al cargar partida impidio continuar. Queda por
+confirmar si usaba VDXR o SteamVR como runtime OpenXR.

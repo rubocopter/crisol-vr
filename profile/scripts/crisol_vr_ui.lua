@@ -2,6 +2,7 @@
 -- get independent positioning. Native game visibility and interaction logic remain in charge.
 local utils = require('libs/uevr_utils')
 local controllers = require('libs/controllers')
+local aim = require('libs/crisol_aim')
 local layout = utils.find_default_instance('Class /Script/UMG.WidgetLayoutLibrary')
 local crosshairs, components, active_icons, changed = {}, {}, {}, {}
 local last_error, reported_projection = nil, false
@@ -168,18 +169,32 @@ uevr.sdk.callbacks.on_post_engine_tick(function()
             end
         end
         if #visible_crosshairs > 0 then
-            -- Crisol shoots along its native view, driven by UEVR's effective
-            -- ControlRotation. Raw hand tracking has a different origin and
-            -- bypasses AimInterp. Read the game's view instead of recreating it;
-            -- its origin also stays distinct from the offset stereo/HMD camera.
-            local player_controller = utils.get_player_controller()
+            local pawn = scan_pawn
+            -- The camera policy publishes the same target it aimed the shot at.
+            local target = aim.get_target(pawn)
             local origin, direction
-            if valid(player_controller) then
-                player_controller:GetPlayerViewPoint(native_origin, native_rotation)
-                origin, direction = native_origin, utils.getForwardVector(native_rotation)
+            if target then
+                origin, direction = head, sub(target, head)
+            else
+                local hand_aim = uevr.params.vr.get_aim_method and uevr.params.vr.get_aim_method() == 2
+                if hand_aim then
+                    origin, direction = controllers.getControllerLocation(1), controllers.getControllerDirection(1)
+                end
+                local player_controller = utils.get_player_controller()
+                if not (origin and direction) and valid(player_controller) then
+                    player_controller:GetPlayerViewPoint(native_origin, native_rotation)
+                    origin, direction = native_origin, utils.getForwardVector(native_rotation)
+                    hand_aim = false
+                end
+                if origin and direction then
+                    target = utils.getTargetLocation(origin, direction, 0, {pawn}, false, 10)
+                    if not target and hand_aim then
+                        target = utils.vector(origin.X+direction.X*8192, origin.Y+direction.Y*8192,
+                            origin.Z+direction.Z*8192)
+                    end
+                end
             end
             if origin and direction then
-                local target = utils.getTargetLocation(origin, direction, 0, {uevr.api:get_local_pawn(0)}, false, 10)
                 local aim_origin, aim_direction = origin, direction
                 if target then
                     local d = sub(target, head)
@@ -202,7 +217,7 @@ uevr.sdk.callbacks.on_post_engine_tick(function()
                 end
                 if x and #crosshairs > 0 and not reported_projection then
                     reported_projection = true
-                    uevr.params.functions.log_info('[Crisol VR UI] Native-view crosshair projection active')
+                    uevr.params.functions.log_info('[Crisol VR UI] Tracked-gun/native-view crosshair projection active')
                 end
             end
         end

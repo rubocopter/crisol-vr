@@ -11,6 +11,7 @@ def ui():
     lua.execute("""
         intervals = {}; widgets = {}; icon_components = {}; warnings = {}
         pawn = {PlayerArms = {}}; global_scans = 0; cached_scans = 0; traces = 0
+        aim_method=1; hand_direction={X=1,Y=0,Z=0}
         view_origin = {X=0,Y=0,Z=0}; view_rotation = {Pitch=0,Yaw=0,Roll=0}
         player_controller = {
             GetPlayerViewPoint = function(self, origin, rotation)
@@ -55,7 +56,10 @@ def ui():
             controllerExists = function() return true end,
             createController = function() end,
             getControllerLocation = function(id) return {X=0,Y=0,Z=0} end,
-            getControllerDirection = function(id) return {X=1,Y=0,Z=0} end,
+            getControllerDirection = function(id)
+                if id==1 then return hand_direction end
+                return {X=1,Y=0,Z=0}
+            end,
             getControllerRightVector = function(id) return {X=0,Y=1,Z=0} end,
             getControllerUpVector = function(id) return {X=0,Y=0,Z=1} end,
             getControllerTargetLocation = function() traces=traces+1; return nil end,
@@ -63,7 +67,8 @@ def ui():
         uevr = {
             api = {get_local_pawn = function() return pawn end},
             params = {
-                vr = {get_mod_value = function() return nil end},
+                vr = {get_mod_value = function() return nil end,
+                    get_aim_method=function() return aim_method end},
                 sdk = {callbacks = {on_script_reset = function(fn) script_reset = fn end}},
                 functions = {log_info = function() end, log_warn = function(s) warnings[#warnings+1]=s end},
             },
@@ -71,6 +76,9 @@ def ui():
         }
         package.preload['libs/uevr_utils'] = function() return utils end
         package.preload['libs/controllers'] = function() return controllers end
+        package.preload['libs/crisol_aim'] = function()
+            return {get_target=function() return applied_shot_target end}
+        end
         function new_widget(label, x, y)
             return {
                 visible=true, in_viewport=true, owner=pawn,
@@ -238,4 +246,39 @@ def test_reticle_tracks_effective_native_rotation_and_hit_parallax_each_tick():
         local t=304.5/trace_direction.X
         assert(math.abs(crosshair.translation.X-(4+trace_direction.Y*t)*pixels_per_cm)<0.001)
         assert(math.abs(crosshair.translation.Y+(8+trace_direction.Z*t)*pixels_per_cm)<0.001)
+    """)
+
+
+def test_reticle_projects_the_applied_shot_target_without_retracing():
+    lua = ui()
+    lua.execute("""
+        local crosshair=new_widget('CRCrosshair_C /Engine/Transient.GunRay')
+        widgets={crosshair}; scan()
+        applied_shot_target={X=500,Y=100,Z=0}
+        trace_target={X=20,Y=-100,Z=0}
+        tick(nil,1/90)
+        local first=crosshair.translation.X
+        assert(first>0)
+        applied_shot_target={X=8192,Y=-2000,Z=0}
+        tick(nil,1/90)
+        assert(crosshair.translation.X<0 and crosshair.translation.X<first)
+        assert(traces==0)
+        assert(#warnings==0)
+    """)
+
+
+def test_reticle_follows_right_controller_before_first_stereo_gun_sample():
+    lua = ui()
+    lua.execute("""
+        local crosshair=new_widget('CRCrosshair_C /Engine/Transient.HandFallback')
+        widgets={crosshair}; scan()
+        aim_method=2; trace_target=nil
+        tick(nil,1/90)
+        assert(trace_direction.X==1 and crosshair.translation)
+        local first=crosshair.translation.X
+        hand_direction={X=0.98,Y=0.2,Z=0}
+        tick(nil,1/90)
+        assert(trace_direction.Y==0.2)
+        assert(crosshair.translation.X>first,
+            'Crosshair must follow the hand when a gun sample is unavailable')
     """)
